@@ -4,7 +4,7 @@ Oh you know, just some silly bookmarklets...
 
 ## Silly Flexbox Mayhem
 
-or: "Hexaflexagone.js", or whatever - 'cause it makes the UI git gone (and it's unintuitive, in how it flexes)
+or: "Hexaflexagone.js" - because it makes much of the UI *get gone* (and it *flexes* in *unexpected* ways)
 
 [Go here to get the bookmarklet.](https://1j01.github.io/bookmarklets)
 (I can't make a `javascript:` link on a GitHub README, that would be a huge security issue!)
