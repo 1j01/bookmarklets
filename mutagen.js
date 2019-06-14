@@ -3,7 +3,7 @@ function findEditPoints(code) {
 	var editPoints = new Set();
 
 	// the first group here is in lieu of negative lookbehinds in javascript
-	var numbersRegExp = /([^a-z$_]|^)(0x[\dA-F]+|\d+(?:\.\d*)?|\.\d+)(?!e)/gi;
+	var numbersRegExp = /([^a-z0-9$_]|^)(0x[\dA-F]+|\d+(?:\.\d*)?|\.\d+)(?!e)/gi;
 	var match;
 	var lastMatchLastIndex = 0;
 	while ((match = numbersRegExp.exec(code)) !== null) {
