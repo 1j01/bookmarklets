@@ -42,7 +42,7 @@ function mutateNumber(num_str, mutation_chance) {
 		} else if (!had_dot) {
 			return `${Math.ceil(n)}`;
 		}
-		return n;
+		return `${n}`;
 	}
 	// console.log(`matched ${num_str}`, {n, had_dot, num_str});
 
