@@ -88,6 +88,7 @@ function setCodeOnPage(new_code) {
 	var cm = document.querySelector('.CodeMirror').CodeMirror;
 	cm.setValue(new_code);
 }
+
 function findProblem() {
 	// TODO: bytebeat
 	// var errorMessageEl = document.querySelector(".CodeMirror .errorMessage");
@@ -99,11 +100,39 @@ function findProblem() {
 	if (document.querySelector(".tab.errorYes")) {
 		return new Error("compile failed (in some tab)");
 	}
-	// TODO: detect not just compilation failure but also blank canvas (all pixels same color)
-	// maybe testing the canvas for whether it's blank (after rendering a frame) would be expensive enough that it should
+	// TODO: maybe testing the canvas for whether it's blank (after rendering a frame) would be expensive enough that it should
 	// do that as a later pass after first just making sure it compiles and checking at the end that it's not blank
 	// (and at *that* point check every time that it's not blank)
+	if (!isOutputCanvasInteresting()) {
+		return new Error("output looks boring / blank");
+	}
 }
+
+var outputCanvas = document.querySelector("canvas#demogl, canvas.playerCanvas, #player canvas, #content canvas, canvas");
+var testCanvas = document.createElement("canvas");
+var testCtx = testCanvas.getContext("2d");
+
+function isOutputCanvasInteresting() {
+	testCanvas.width = 10;
+	testCanvas.height = 10;
+	testCtx.drawImage(outputCanvas, 0, 0, testCanvas.width, testCanvas.height);
+
+	var imageData = testCtx.getImageData(0, 0, testCanvas.width, testCanvas.height);
+	var [r, g, b] = imageData.data;
+	var threshold = 25;
+	var interesting = false;
+	for (var i=0; i<imageData.data.length; i+=4) {
+		var diff =
+			Math.abs(imageData.data[i+0] - r) +
+			Math.abs(imageData.data[i+1] - g) +
+			Math.abs(imageData.data[i+2] - b);
+		if (diff > threshold) {
+			interesting = true;
+		}
+	}
+	return interesting;
+}
+
 function isCompiling() {
 	// TODO: bytebeat
 	return document.querySelector("#compilationTime").textContent.match(/Compiling/i);
