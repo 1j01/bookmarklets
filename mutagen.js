@@ -8,8 +8,8 @@ function findEditPoints(code) {
 	var lastMatchLastIndex = 0;
 	while ((match = numbersRegExp.exec(code)) !== null) {
 		var [match_str, negative_match_group_str, num_str] = match;
-		console.log('Found', {match, match_str, negative_match_group_str, num_str});
-		console.log('Next match starts at ' + numbersRegExp.lastIndex);
+		// console.log('Found', {match, match_str, negative_match_group_str, num_str});
+		// console.log('Next match starts at ' + numbersRegExp.lastIndex);
 		doc.push(code.slice(lastMatchLastIndex, match.index + negative_match_group_str.length));
 		if (isNaN(num_str)) {
 			console.log(`somehow matched ${num_str} (full match_str = ${match_str})`);
@@ -159,8 +159,8 @@ async function mutateCodeOnPage() {
 	for (var edit_set_tries = 0; edit_set_tries < 5; edit_set_tries++) {
 		genModifications(editPoints, mutation_chance);
 
-		var acceptedEditPoints = new Set();
-		var rejectedEditPoints = new Set();
+		var acceptedEdits = new Set();
+		var rejectedEdits = new Set();
 
 		// TODO: accept all null modifications (originalStr === modifiedStr)
 
@@ -182,40 +182,89 @@ async function mutateCodeOnPage() {
 		// 	}
 		// }
 
-		var acceptedAndTestingSet = new Set();
-		async function recur(testSet) {
-			// first, apply all edits and see if it works
-			var error = await tryEdits(doc, testSet);
-			if (!error) {
-				return testSet;
-			}
+		// var acceptedAndTestingSet = new Set();
+		// async function recur(testSet) {
+		// 	// first, apply all edits and see if it works
+		// 	var error = await tryEdits(doc, testSet);
+		// 	if (!error) {
+		// 		return testSet;
+		// 	}
 		
-			// otherwise, split the set in twain
-			var subsets = bifurcateSet(testSet);
+		// 	// otherwise, split the set in twain
+		// 	var subsets = bifurcateSet(testSet);
 
-			for (var subset of subsets) {
-				for (var editPoint of subset) {
-					acceptedAndTestingSet.add(editPoint);
-				}
-				console.log("try with adding", subset, "total edits", acceptedAndTestingSet.size);
-				var error = await tryEdits(doc, acceptedAndTestingSet);
-				if (error) {
-					console.log(error);
-					for (var editPoint of subset) {
-						acceptedAndTestingSet.delete(editPoint);
+		// 	for (var subset of subsets) {
+		// 		for (var editPoint of subset) {
+		// 			acceptedAndTestingSet.add(editPoint);
+		// 		}
+		// 		console.log("try with adding", subset, "total edits", acceptedAndTestingSet.size);
+		// 		var error = await tryEdits(doc, acceptedAndTestingSet);
+		// 		if (error) {
+		// 			console.log(error);
+		// 			for (var editPoint of subset) {
+		// 				acceptedAndTestingSet.delete(editPoint);
+		// 			}
+		// 			await recur(subset);
+		// 		}
+		// 	}
+		// 	return new Set(acceptedAndTestingSet);
+		// }
+		// await recur(editPoints);
+
+		// Accepted edits = none
+		// R(unvetted edits):
+		// 	Try with all accepted + unvetted edits
+		// 	if good,
+		// 		Accepted edits += unvetted edits
+		// 	else
+		// 		if unvetted edits is one edit
+		// 			Rejected edits += unvetted edits
+		// 			Unvetted edits = none
+		// 		else
+		// 			[left, right] = bifurcate(unvetted edits)
+		// 			R(left)
+		// 			R(right)
+		// R(all edits)
+		// use accepted edits
+
+		async function recursivelyTryEditSet(unvettedEdits) {
+			console.log("recursivelyTryEditSet", unvettedEdits);
+
+			// first, apply all edits and see if it works
+			let testSet = new Set([...acceptedEdits, ...unvettedEdits]);
+
+			console.log("tryEdits", doc, testSet);
+			var error = await tryEdits(doc, testSet);
+			console.log("end tryEdits", doc, testSet);
+			console.log("tried testSet", testSet, "got", error);
+			if (!error) {
+				unvettedEdits.forEach(acceptedEdits.add, acceptedEdits);
+				return;
+			} else {
+				console.log(unvettedEdits, error);
+				if (unvettedEdits.size <= 1) {
+					unvettedEdits.forEach(rejectedEdits.add, rejectedEdits);
+					// unvettedEdits = new Set();
+				} else {
+					var subsets = bifurcateSet(testSet);
+					// subsets.forEach(recursivelyTryEditSet);
+					for (var subset of subsets) {
+						await recursivelyTryEditSet(subset);
 					}
-					await recur(subset);
 				}
 			}
-			return new Set(acceptedAndTestingSet);
 		}
-		await recur(editPoints);
+		recursivelyTryEditSet(editPoints);
 
+		tryEdits(doc, acceptedEdits);
 
-		var new_code = renderDocToString(doc, acceptedAndTestingSet);
+		console.log({acceptedEdits});
+
+		// var new_code = renderDocToString(doc, acceptedAndTestingSet);
+		var new_code = renderDocToString(doc, acceptedEdits);
 		var new_code_from_page = getCodeFromPage();
 		console.assert(new_code === new_code_from_page, "got different code from page as should have been generated");
-		console.log("new_code", new_code);
+		// console.log("new_code", new_code);
 		if (new_code === original_code) {
 			console.log("new_code is same as original_code, LAME");
 		} else {
