@@ -1,4 +1,4 @@
-function findEditPoints(code, mutation_chance) {
+function findEditPoints(code) {
 	var doc = [];
 	var editPoints = new Set();
 
@@ -18,7 +18,7 @@ function findEditPoints(code, mutation_chance) {
 			var editPoint = {
 				type: "number",
 				originalStr: num_str,
-				modifiedStr: mutateNumber(num_str, mutation_chance), // TODO: do this in separate step, remove mutation_chance from args above
+				modifiedStr: num_str,
 			};
 			editPoints.add(editPoint);
 			doc.push(editPoint);
@@ -88,12 +88,12 @@ function setCodeOnPage(new_code) {
 	var cm = document.querySelector('.CodeMirror').CodeMirror;
 	cm.setValue(new_code);
 }
-function didCompileFail() {
+function findProblem() {
 	// TODO: bytebeat
 	if (document.querySelector(".tab.errorYes, .CodeMirror .errorMessage")) {
-		return true;
+		return new Error("compile failed");
 	}
-	return false;
+	// TODO: detect not just compilation failure but also blank canvas (all pixels same color)
 }
 function isCompiling() {
 	// TODO: bytebeat
@@ -108,8 +108,8 @@ function compileCodeOnPage() {
 			if (isCompiling()) {
 				setTimeout(waitForCompileFinish, 50);
 			} else {
-				var success = !didCompileFail();
-				if (success) resolve(); else reject(new Error("compile failed"));
+				var error = findProblem();
+				if (error) { reject(error); } else { resolve(); }
 			}
 		}
 		waitForCompileFinish();
@@ -120,10 +120,18 @@ function mutateCodeOnPage() {
 	var original_code = getCodeFromPage();
 	var mutation_chance = 0.05 + 1 / original_code.length;
 
+	var {doc, editPoints} = findEditPoints(original_code, mutation_chance);
+
+	for (var editPoint of editPoints) {
+		if (editPoint.type === "number") {
+			editPoint.modifiedStr = mutateNumber(editPoint.originalStr, mutation_chance);
+		}
+	}
+
+	console.log({doc, editPoints});
+
 	// TODO: try sets of edits in a sort of binary search of whether it can compile with a given set (accept set of edits) and whether a particular single edit makes it not compile (reject one edit)
 
-	var {doc, editPoints} = findEditPoints(original_code, mutation_chance);
-	console.log({doc, editPoints});
 	var new_code = renderDocToString(doc, editPoints);
 	console.log("new_code", new_code);
 	if (new_code === original_code) {
@@ -135,7 +143,7 @@ function mutateCodeOnPage() {
 	compileCodeOnPage(new_code).then(()=> {
 		console.log("compile succeeded");
 	},	(error)=> {
-		console.log("compile failed");
+		console.log(error);
 	});
 }
 
@@ -159,7 +167,6 @@ mutateCodeOnPage();
 
 /*
 some other things that would be good:
-detect not just compilation failure but also blank canvas (all pixels same color)
 support bytebeat again [on windows93.net too]
 khan academy, including "error buddy" detection
 code fiddles like jsfiddle, codepen, jsbin
