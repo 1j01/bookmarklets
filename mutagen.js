@@ -2,17 +2,16 @@ function findEditPoints(code) {
 	var doc = [];
 	var editPoints = new Set();
 
-	// the first group here is in lieu of negative lookbehinds in javascript, to try to make sure we're not in an identifier
+	// the first group here is in lieu of negative lookbehinds in javascript,
+	// to avoid starting matching from inside an identifier
 	var numbersRegExp = /([^a-z0-9$_]|^)(0x[\dA-F]+|\d+(?:\.\d*)?|\.\d+)(?!e)/gi;
 	var match;
 	var lastMatchLastIndex = 0;
 	while ((match = numbersRegExp.exec(code)) !== null) {
 		var [match_str, negative_match_group_str, num_str] = match;
-		// console.log('Found', {match, match_str, negative_match_group_str, num_str});
-		// console.log('Next match starts at ' + numbersRegExp.lastIndex);
 		doc.push(code.slice(lastMatchLastIndex, match.index + negative_match_group_str.length));
 		if (isNaN(num_str)) {
-			console.log(`somehow matched ${num_str} (full match_str = ${match_str})`);
+			console.warn(`somehow matched ${num_str} (full match_str = ${match_str})`);
 			doc.push(editPoint);
 		} else {
 			var editPoint = {
@@ -36,7 +35,7 @@ function mutateNumber(num_str, mutation_chance) {
 
 	// keep number as float or int (determined by whether there's a decimal point in GLSL)
 	var had_dot = num_str.indexOf(".") > -1;
-	var cast = (n)=> {
+	var keep_as_int_or_float = (n)=> {
 		if (had_dot && `${n}`.indexOf(".") === -1) {
 			return `${n}.0`;
 		} else if (!had_dot) {
@@ -44,9 +43,9 @@ function mutateNumber(num_str, mutation_chance) {
 		}
 		return `${n}`;
 	}
-	// console.log(`matched ${num_str}`, {n, had_dot, num_str});
 
-	// console.log("mutate number", n);
+	// console.log(`mutate ${num_str}`, {n, had_dot, num_str});
+
 	if (Math.random() < mutation_chance) { n += 1; }
 	if (Math.random() < mutation_chance) { n -= 1; }
 	if (Math.random() < mutation_chance) { n /= 2; }
@@ -55,9 +54,9 @@ function mutateNumber(num_str, mutation_chance) {
 		console.warn(`somehow got ${n} from ${JSON.stringify(num_str)}`);
 		return num_str;
 	} else if (n < 0 && original_n >= 0) {
-		return "(" + cast(n - 1) + ")";
+		return `(${keep_as_int_or_float(n)})`;
 	}
-	return cast(n);
+	return keep_as_int_or_float(n);
 }
 
 function renderDocToString(doc, editPointsSet) {
@@ -111,10 +110,11 @@ function findProblem() {
 var outputCanvas = document.querySelector("canvas#demogl, canvas.playerCanvas, #player canvas, #content canvas, canvas");
 var testCanvas = document.createElement("canvas");
 var testCtx = testCanvas.getContext("2d");
+testCanvas.width = 10;
+testCanvas.height = 10;
 
 function isOutputCanvasInteresting() {
-	testCanvas.width = 10;
-	testCanvas.height = 10;
+	testCtx.clearRect(0, 0, testCanvas.width, testCanvas.height);
 	testCtx.drawImage(outputCanvas, 0, 0, testCanvas.width, testCanvas.height);
 
 	var imageData = testCtx.getImageData(0, 0, testCanvas.width, testCanvas.height);
@@ -146,10 +146,10 @@ function compileCodeOnPage() {
 			if (isCompiling()) {
 				setTimeout(waitForCompileFinish, 50);
 			} else {
-				var error = findProblem();
 				setTimeout(()=> { // may not be needed!
+					var error = findProblem();
 					if (error) { reject(error); } else { resolve(); }
-				}, 50);
+				}, 5);
 			}
 		}
 		waitForCompileFinish();
@@ -178,8 +178,7 @@ function bifurcateSet(set) {
 	var right = new Set();
 	var i = 0;
 	for (var item of set) {
-		// [left, right][i % 2].add(item); // alternating
-		(i >= set.size/2 ? right : left).add(item); // split in half
+		(i >= set.size/2 ? right : left).add(item);
 		i++;
 	}
 	return [left, right];
@@ -187,7 +186,7 @@ function bifurcateSet(set) {
 
 async function mutateCodeOnPage() {
 	var original_code = getCodeFromPage();
-	var mutation_chance = 0.05 + 1 / original_code.length;
+	var mutation_chance = 0.01 + (0.5 / original_code.length);
 
 	var {doc, editPoints} = findEditPoints(original_code, mutation_chance);
 
@@ -199,21 +198,24 @@ async function mutateCodeOnPage() {
 
 		// TODO: accept all null modifications (originalStr === modifiedStr)
 
-		// Accepted edits := none
-		// Rejected edits := none
-		// Recurse(unvetted edits):
-		// 	Try with all accepted + unvetted edits
-		// 	If good,
-		// 		Accepted edits += unvetted edits
-		// 	Else
-		// 		If unvetted edits is just one edit
-		// 			Rejected edits += unvetted edits
-		// 		else
-		// 			[left, right] := bifurcate(unvetted edits)
-		// 			Recurse(left)
-		// 			Recurse(right)
-		// Recurse(all edits)
-		// Use accepted edits
+		/* pseudo-code for the following algorithm
+
+		Accepted edits := none
+		Rejected edits := none
+		Recurse(unvetted edits):
+			Try with all accepted + unvetted edits
+			If good,
+				Accepted edits += unvetted edits
+			Else
+				If unvetted edits is just one edit
+					Rejected edits += unvetted edits
+				else
+					[left, right] := bifurcate(unvetted edits)
+					Recurse(left)
+					Recurse(right)
+		Recurse(all edits)
+		Use accepted edits
+		*/
 
 		async function recursivelyTryEditSet(unvettedEdits) {
 			// console.log("recursivelyTryEditSet", unvettedEdits);
