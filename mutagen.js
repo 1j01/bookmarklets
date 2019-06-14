@@ -90,8 +90,14 @@ function setCodeOnPage(new_code) {
 }
 function findProblem() {
 	// TODO: bytebeat
-	if (document.querySelector(".tab.errorYes, .CodeMirror .errorMessage")) {
-		return new Error("compile failed");
+	// var errorMessageEl = document.querySelector(".CodeMirror .errorMessage");
+	// if (errorMessageEl && getComputedStyle(errorMessageEl).visibility !== "hidden") {
+	var errorMessageEl = document.querySelector(".CodeMirror-linewidget .errorMessage");
+	if (errorMessageEl && getComputedStyle(errorMessageEl).visibility !== "hidden") {
+		return new Error(`compile failed: ${errorMessageEl.textContent}`);
+	}
+	if (document.querySelector(".tab.errorYes")) {
+		return new Error("compile failed (in some tab)");
 	}
 	// TODO: detect not just compilation failure but also blank canvas (all pixels same color)
 	// maybe testing the canvas for whether it's blank (after rendering a frame) would be expensive enough that it should
@@ -114,7 +120,7 @@ function compileCodeOnPage() {
 				var error = findProblem();
 				setTimeout(()=> { // may not be needed!
 					if (error) { reject(error); } else { resolve(); }
-				}, 5);
+				}, 50);
 			}
 		}
 		waitForCompileFinish();
@@ -144,7 +150,7 @@ function bifurcateSet(set) {
 	var i = 0;
 	for (var item of set) {
 		// [left, right][i % 2].add(item); // alternating
-		(i > set.size/2 ? right : left).add(item); // split in half
+		(i >= set.size/2 ? right : left).add(item); // split in half
 		i++;
 	}
 	return [left, right];
@@ -164,53 +170,6 @@ async function mutateCodeOnPage() {
 
 		// TODO: accept all null modifications (originalStr === modifiedStr)
 
-		// // first, apply all edits and see if it works
-		// var error = await tryEdits(doc, editPoints);
-		// if (!error) {
-		// 	return;
-		// }
-	
-		// // then, start with no edits, and add points progressively, testing each time
-		// var testSet = new Set;
-		// for (var editPoint of editPoints) {
-		// 	testSet.add(editPoint);
-		// 	console.log("try with", editPoint, "total", testSet.size);
-		// 	var error = await tryEdits(doc, testSet);
-		// 	if (error) {
-		// 		console.log(error);
-		// 		testSet.delete(editPoint);
-		// 	}
-		// }
-
-		// var acceptedAndTestingSet = new Set();
-		// async function recur(testSet) {
-		// 	// first, apply all edits and see if it works
-		// 	var error = await tryEdits(doc, testSet);
-		// 	if (!error) {
-		// 		return testSet;
-		// 	}
-		
-		// 	// otherwise, split the set in twain
-		// 	var subsets = bifurcateSet(testSet);
-
-		// 	for (var subset of subsets) {
-		// 		for (var editPoint of subset) {
-		// 			acceptedAndTestingSet.add(editPoint);
-		// 		}
-		// 		console.log("try with adding", subset, "total edits", acceptedAndTestingSet.size);
-		// 		var error = await tryEdits(doc, acceptedAndTestingSet);
-		// 		if (error) {
-		// 			console.log(error);
-		// 			for (var editPoint of subset) {
-		// 				acceptedAndTestingSet.delete(editPoint);
-		// 			}
-		// 			await recur(subset);
-		// 		}
-		// 	}
-		// 	return new Set(acceptedAndTestingSet);
-		// }
-		// await recur(editPoints);
-
 		// Accepted edits = none
 		// R(unvetted edits):
 		// 	Try with all accepted + unvetted edits
@@ -229,24 +188,27 @@ async function mutateCodeOnPage() {
 
 		async function recursivelyTryEditSet(unvettedEdits) {
 			console.log("recursivelyTryEditSet", unvettedEdits);
+			if (unvettedEdits.size === 0) {
+				return;
+			}
 
 			// first, apply all edits and see if it works
 			let testSet = new Set([...acceptedEdits, ...unvettedEdits]);
 
-			console.log("tryEdits", doc, testSet);
 			var error = await tryEdits(doc, testSet);
-			console.log("end tryEdits", doc, testSet);
 			console.log("tried testSet", testSet, "got", error);
 			if (!error) {
+				console.log("accepting edits:", unvettedEdits);
 				unvettedEdits.forEach(acceptedEdits.add, acceptedEdits);
 				return;
 			} else {
 				console.log(unvettedEdits, error);
 				if (unvettedEdits.size <= 1) {
+					console.log("rejecting edits:", unvettedEdits);
 					unvettedEdits.forEach(rejectedEdits.add, rejectedEdits);
 					// unvettedEdits = new Set();
 				} else {
-					var subsets = bifurcateSet(testSet);
+					var subsets = bifurcateSet(unvettedEdits);
 					// subsets.forEach(recursivelyTryEditSet);
 					for (var subset of subsets) {
 						await recursivelyTryEditSet(subset);
@@ -254,9 +216,11 @@ async function mutateCodeOnPage() {
 				}
 			}
 		}
-		recursivelyTryEditSet(editPoints);
+		await recursivelyTryEditSet(editPoints);
 
-		tryEdits(doc, acceptedEdits);
+		console.log("done recursively trying edit sets; time to set code to use accepted edits");
+
+		await tryEdits(doc, acceptedEdits);
 
 		console.log({acceptedEdits});
 
@@ -296,15 +260,28 @@ function addButtonToUI() {
 	button.onclick = mutateCodeOnPage;
 }
 
+await mutateCodeOnPage();
 addButtonToUI();
-mutateCodeOnPage();
 
 /*
-some other things that would be good:
-support bytebeat again [on windows93.net too]
-khan academy, including "error buddy" detection
-code fiddles like jsfiddle, codepen, jsbin
-maybe insert a header at the top that explains the (wild) modifications (good for forking)
+TODO: protect against starting while already running, maybe have a stop button
+
+Some other things that would be good:
+
+present a grid of thumbnails of a bunch of variations to pick from
+	rows could be from progressively accepting subsets of one changeset,
+	and then there'd be a few rows, with totally different changesets
+
+operate on selection if there's a selection (and update bounds of selection)
+	multiple selections
+
+platform support
+	support bytebeat again [on windows93.net too]
+	khan academy, including "error buddy" detection
+	code fiddles like jsfiddle, codepen, jsbin
+
+insert a header at the top that explains the (wild) modifications (good for forking)
+
 wrap values sometimes in a function, like i did for:
 	https://www.khanacademy.org/computer-programming/phantasmagoria/2540238893
 	https://www.khanacademy.org/computer-programming/phantasmagoria-plus/6066580222902272
