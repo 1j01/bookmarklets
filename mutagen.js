@@ -2,7 +2,7 @@ function findEditPoints(code) {
 	var doc = [];
 	var editPoints = new Set();
 
-	// the first group here is in lieu of negative lookbehinds in javascript
+	// the first group here is in lieu of negative lookbehinds in javascript, to try to make sure we're not in an identifier
 	var numbersRegExp = /([^a-z0-9$_]|^)(0x[\dA-F]+|\d+(?:\.\d*)?|\.\d+)(?!e)/gi;
 	var match;
 	var lastMatchLastIndex = 0;
@@ -94,6 +94,9 @@ function findProblem() {
 		return new Error("compile failed");
 	}
 	// TODO: detect not just compilation failure but also blank canvas (all pixels same color)
+	// maybe testing the canvas for whether it's blank (after rendering a frame) would be expensive enough that it should
+	// do that as a later pass after first just making sure it compiles and checking at the end that it's not blank
+	// (and at *that* point check every time that it's not blank)
 }
 function isCompiling() {
 	// TODO: bytebeat
@@ -109,42 +112,124 @@ function compileCodeOnPage() {
 				setTimeout(waitForCompileFinish, 50);
 			} else {
 				var error = findProblem();
-				if (error) { reject(error); } else { resolve(); }
+				setTimeout(()=> { // may not be needed!
+					if (error) { reject(error); } else { resolve(); }
+				}, 5);
 			}
 		}
 		waitForCompileFinish();
 	});
 }
-
-function mutateCodeOnPage() {
-	var original_code = getCodeFromPage();
-	var mutation_chance = 0.05 + 1 / original_code.length;
-
-	var {doc, editPoints} = findEditPoints(original_code, mutation_chance);
-
+function genModifications(editPoints, mutation_chance) {
 	for (var editPoint of editPoints) {
 		if (editPoint.type === "number") {
 			editPoint.modifiedStr = mutateNumber(editPoint.originalStr, mutation_chance);
 		}
 	}
+}
 
-	console.log({doc, editPoints});
+async function tryEdits(doc, edit_points) {
+	var new_code = renderDocToString(doc, edit_points);
+	setCodeOnPage(new_code);
+	try {
+		await compileCodeOnPage(new_code);
+	} catch (error) {
+		return error;
+	}
+}
+
+function bifurcateSet(set) {
+	var left = new Set();
+	var right = new Set();
+	var i = 0;
+	for (var item of set) {
+		// [left, right][i % 2].add(item); // alternating
+		(i > set.size/2 ? right : left).add(item); // split in half
+		i++;
+	}
+	return [left, right];
+}
+
+async function mutateCodeOnPage() {
+	var original_code = getCodeFromPage();
+	var mutation_chance = 0.05 + 1 / original_code.length;
+
+	var {doc, editPoints} = findEditPoints(original_code, mutation_chance);
+
+	for (var edit_set_tries = 0; edit_set_tries < 5; edit_set_tries++) {
+		genModifications(editPoints, mutation_chance);
+
+		var acceptedEditPoints = new Set();
+		var rejectedEditPoints = new Set();
+
+		// TODO: accept all null modifications (originalStr === modifiedStr)
+
+		// // first, apply all edits and see if it works
+		// var error = await tryEdits(doc, editPoints);
+		// if (!error) {
+		// 	return;
+		// }
+	
+		// // then, start with no edits, and add points progressively, testing each time
+		// var testSet = new Set;
+		// for (var editPoint of editPoints) {
+		// 	testSet.add(editPoint);
+		// 	console.log("try with", editPoint, "total", testSet.size);
+		// 	var error = await tryEdits(doc, testSet);
+		// 	if (error) {
+		// 		console.log(error);
+		// 		testSet.delete(editPoint);
+		// 	}
+		// }
+
+		var acceptedAndTestingSet = new Set();
+		async function recur(testSet) {
+			// first, apply all edits and see if it works
+			var error = await tryEdits(doc, testSet);
+			if (!error) {
+				return testSet;
+			}
+		
+			// otherwise, split the set in twain
+			var subsets = bifurcateSet(testSet);
+
+			for (var subset of subsets) {
+				for (var editPoint of subset) {
+					acceptedAndTestingSet.add(editPoint);
+				}
+				console.log("try with adding", subset, "total edits", acceptedAndTestingSet.size);
+				var error = await tryEdits(doc, acceptedAndTestingSet);
+				if (error) {
+					console.log(error);
+					for (var editPoint of subset) {
+						acceptedAndTestingSet.delete(editPoint);
+					}
+					await recur(subset);
+				}
+			}
+			return new Set(acceptedAndTestingSet);
+		}
+		await recur(editPoints);
+
+
+		var new_code = renderDocToString(doc, acceptedAndTestingSet);
+		var new_code_from_page = getCodeFromPage();
+		console.assert(new_code === new_code_from_page, "got different code from page as should have been generated");
+		console.log("new_code", new_code);
+		if (new_code === original_code) {
+			console.log("new_code is same as original_code, LAME");
+		} else {
+			break;
+		}
+	}
 
 	// TODO: try sets of edits in a sort of binary search of whether it can compile with a given set (accept set of edits) and whether a particular single edit makes it not compile (reject one edit)
 
-	var new_code = renderDocToString(doc, editPoints);
-	console.log("new_code", new_code);
-	if (new_code === original_code) {
-		console.log("new_code is same as original_code, LAME");
-	}
+	// if it doesn't, start with no edits and progressively add edits until all are tested to work (and included) or not (and rejected)
+	// but only reject one at a time (whereas accepting multiple at a time is fine)
+	// if at the end of this process, it compiles but the canvas is blank, start over but checking for compilation and canvas content at each step
+	// if at the end of the process, the code is the same as the original, that's lame - try a new set of edits a few times
 
-	setCodeOnPage(new_code);
-
-	compileCodeOnPage(new_code).then(()=> {
-		console.log("compile succeeded");
-	},	(error)=> {
-		console.log(error);
-	});
 }
 
 function addButtonToUI() {
