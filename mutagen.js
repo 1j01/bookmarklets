@@ -100,9 +100,9 @@ function findProblem() {
 	if (document.querySelector(".tab.errorYes")) {
 		return new Error("compile failed (in some tab)");
 	}
-	// TODO: maybe testing the canvas for whether it's blank (after rendering a frame) would be expensive enough that it should
-	// do that as a later pass after first just making sure it compiles and checking at the end that it's not blank
-	// (and at *that* point check every time that it's not blank)
+	// TODO: maybe testing the canvas for whether it's blank (after rendering a frame) is be expensive enough
+	// that it should first do a pass just checking that it compiles, and check *at the end* if it's blank,
+	// and if it's blank then start over but checking also for blankness every time
 	if (!isOutputCanvasInteresting()) {
 		return new Error("output looks boring / blank");
 	}
@@ -199,24 +199,24 @@ async function mutateCodeOnPage() {
 
 		// TODO: accept all null modifications (originalStr === modifiedStr)
 
-		// Accepted edits = none
-		// R(unvetted edits):
+		// Accepted edits := none
+		// Rejected edits := none
+		// Recurse(unvetted edits):
 		// 	Try with all accepted + unvetted edits
-		// 	if good,
+		// 	If good,
 		// 		Accepted edits += unvetted edits
-		// 	else
-		// 		if unvetted edits is one edit
+		// 	Else
+		// 		If unvetted edits is just one edit
 		// 			Rejected edits += unvetted edits
-		// 			Unvetted edits = none
 		// 		else
-		// 			[left, right] = bifurcate(unvetted edits)
-		// 			R(left)
-		// 			R(right)
-		// R(all edits)
-		// use accepted edits
+		// 			[left, right] := bifurcate(unvetted edits)
+		// 			Recurse(left)
+		// 			Recurse(right)
+		// Recurse(all edits)
+		// Use accepted edits
 
 		async function recursivelyTryEditSet(unvettedEdits) {
-			console.log("recursivelyTryEditSet", unvettedEdits);
+			// console.log("recursivelyTryEditSet", unvettedEdits);
 			if (unvettedEdits.size === 0) {
 				return;
 			}
@@ -225,20 +225,18 @@ async function mutateCodeOnPage() {
 			let testSet = new Set([...acceptedEdits, ...unvettedEdits]);
 
 			var error = await tryEdits(doc, testSet);
-			console.log("tried testSet", testSet, "got", error);
+			// console.log("tried testSet", testSet, "got", error);
 			if (!error) {
 				console.log("accepting edits:", unvettedEdits);
 				unvettedEdits.forEach(acceptedEdits.add, acceptedEdits);
 				return;
 			} else {
-				console.log(unvettedEdits, error);
+				// console.log(unvettedEdits, error);
 				if (unvettedEdits.size <= 1) {
-					console.log("rejecting edits:", unvettedEdits);
+					console.log("rejecting edits:", unvettedEdits, "because", error.message);
 					unvettedEdits.forEach(rejectedEdits.add, rejectedEdits);
-					// unvettedEdits = new Set();
 				} else {
 					var subsets = bifurcateSet(unvettedEdits);
-					// subsets.forEach(recursivelyTryEditSet);
 					for (var subset of subsets) {
 						await recursivelyTryEditSet(subset);
 					}
@@ -247,31 +245,18 @@ async function mutateCodeOnPage() {
 		}
 		await recursivelyTryEditSet(editPoints);
 
-		console.log("done recursively trying edit sets; time to set code to use accepted edits");
-
+		// set code on page to use accepted edits and recompile
 		await tryEdits(doc, acceptedEdits);
 
-		console.log({acceptedEdits});
-
-		// var new_code = renderDocToString(doc, acceptedAndTestingSet);
 		var new_code = renderDocToString(doc, acceptedEdits);
 		var new_code_from_page = getCodeFromPage();
 		console.assert(new_code === new_code_from_page, "got different code from page as should have been generated");
-		// console.log("new_code", new_code);
 		if (new_code === original_code) {
 			console.log("new_code is same as original_code, LAME");
 		} else {
 			break;
 		}
 	}
-
-	// TODO: try sets of edits in a sort of binary search of whether it can compile with a given set (accept set of edits) and whether a particular single edit makes it not compile (reject one edit)
-
-	// if it doesn't, start with no edits and progressively add edits until all are tested to work (and included) or not (and rejected)
-	// but only reject one at a time (whereas accepting multiple at a time is fine)
-	// if at the end of this process, it compiles but the canvas is blank, start over but checking for compilation and canvas content at each step
-	// if at the end of the process, the code is the same as the original, that's lame - try a new set of edits a few times
-
 }
 
 function addButtonToUI() {
