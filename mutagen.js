@@ -163,7 +163,15 @@ function genModifications(editPoints, mutation_chance) {
 	}
 }
 
-function addOrReplaceAttributionHeader(code) {
+var attribution_header_start = `// 
+// Based on "`;
+var attribution_header_end = `code mutation tool by Isaiah Odhner)
+
+
+
+`;
+
+function getAttributionHeader() {
 	var shaderTitle = document.querySelector("#shaderTitle").textContent;
 	var shaderAuthorName = document.querySelector("#shaderAuthorName").textContent;
 	var shaderAuthorDate = document.querySelector("#shaderAuthorDate").textContent;
@@ -186,11 +194,35 @@ function addOrReplaceAttributionHeader(code) {
 //  |  |   |  |('  '-'(_.-'   |  |     |  | |  | |  '--'  |  |  \`---.|  | \   |   
 //  \`--'   \`--'  \`-----'      \`--'     \`--' \`--'  \`------'   \`------'\`--'  \`--'
 // 
-// (MUTAGEN, pre-alpha)
+// (MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)
+
+
 
 `;
-	if (code.indexOf(header) < 0) {
-		code = header + code;
+	console.assert(header.indexOf(attribution_header_start) === 0);
+	console.assert(header.indexOf(attribution_header_end) === header.length - attribution_header_end.length);
+	return header;
+}
+function addOrReplaceAttributionHeader(code) {
+	var header = getAttributionHeader();
+	// if (code.indexOf(header) < 0) {
+	// 	code = header + code;
+	// }
+	// return code;
+	return header + removeAttributionHeader(code);
+}
+function removeAttributionHeader(code) {
+	// var header = getAttributionHeader();
+	// var index = code.indexOf(header);
+	// if (index >= 0) {
+	// 	code = code.slice(0, index) + code.slice(index + header.length);
+	// }
+	// return code;
+	var headerStartIndex = code.indexOf(attribution_header_start);
+	var startOfEndIndex = code.indexOf(attribution_header_end);
+	if (headerStartIndex > -1 && startOfEndIndex > -1) {
+		var headerEndIndex = startOfEndIndex + attribution_header_end.length;
+		code = code.slice(0, headerStartIndex) + code.slice(headerEndIndex);
 	}
 	return code;
 }
