@@ -163,8 +163,41 @@ function genModifications(editPoints, mutation_chance) {
 	}
 }
 
+function addOrReplaceAttributionHeader(code) {
+	var shaderTitle = document.querySelector("#shaderTitle").textContent;
+	var shaderAuthorName = document.querySelector("#shaderAuthorName").textContent;
+	var shaderAuthorDate = document.querySelector("#shaderAuthorDate").textContent;
+	var shaderAuthorYear = shaderAuthorDate.replace(/-.*/, "");
+	var header = `// 
+// Based on "${shaderTitle}" by ${shaderAuthorName} - ${shaderAuthorYear}
+//
+// ${location.href}
+//
+//
+// randomly modified with...
+// 
+//  _   .-')                .-') _      ('-.                   ('-.       .-') _  
+// ( '.( OO )_             (  OO) )    ( OO ).-.             _(  OO)     ( OO ) ) 
+//  ,--.   ,--.),--. ,--.  /     '._   / . --. /  ,----.    (,------.,--./ ,--,'  
+//  |   \`.'   | |  | |  |  |'--...__)  | \-.  \  '  .-./-')  |  .---'|   \ |  |\  
+//  |         | |  | | .-')'--.  .--'.-'-'  |  | |  |_( O- ) |  |    |    \|  | ) 
+//  |  |'.'|  | |  |_|( OO )  |  |    \| |_.'  | |  | .--, \(|  '--. |  .     |/  
+//  |  |   |  | |  | | \`-' /  |  |     |  .-.  |(|  | '. (_/ |  .--' |  |\    |   
+//  |  |   |  |('  '-'(_.-'   |  |     |  | |  | |  '--'  |  |  \`---.|  | \   |   
+//  \`--'   \`--'  \`-----'      \`--'     \`--' \`--'  \`------'   \`------'\`--'  \`--'
+// 
+// (MUTAGEN, pre-alpha)
+
+`;
+	if (code.indexOf(header) < 0) {
+		code = header + code;
+	}
+	return code;
+}
+
 async function tryEdits(doc, edit_points) {
 	var new_code = renderDocToString(doc, edit_points);
+	new_code = addOrReplaceAttributionHeader(new_code);
 	setCodeOnPage(new_code);
 	try {
 		await compileCodeOnPage(new_code);
@@ -251,6 +284,7 @@ async function mutateCodeOnPage() {
 		await tryEdits(doc, acceptedEdits);
 
 		var new_code = renderDocToString(doc, acceptedEdits);
+		new_code = addOrReplaceAttributionHeader(new_code);
 		var new_code_from_page = getCodeFromPage();
 		console.assert(new_code === new_code_from_page, "got different code from page as should have been generated");
 		if (new_code === original_code) {
@@ -295,8 +329,6 @@ platform support
 	support bytebeat again [on windows93.net too]
 	khan academy, including "error buddy" detection
 	code fiddles like jsfiddle, codepen, jsbin
-
-insert a header at the top that explains the (wild) modifications (good for forking)
 
 wrap values sometimes in a function, like i did for:
 	https://www.khanacademy.org/computer-programming/phantasmagoria/2540238893
