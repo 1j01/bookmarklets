@@ -190,6 +190,10 @@ var attribution_header_end = `code mutation tool by Isaiah Odhner)
 
 
 `;
+// TODO: handle newlines after header specially
+// - don't include it as an important sentinel for deduplicating the attribution header
+// - add so many newlines only if there's a comment as the next thing (so attribution_header_end + whitespace + slash)
+// (if we're gonna handle other languages that have e.g. # for comments, we'll already need to change/disable the header)
 
 function getAttributionHeader() {
 	var shaderTitle = document.querySelector("#shaderTitle").textContent;
@@ -264,11 +268,6 @@ async function mutateCodeOnPage() {
 	for (var edit_set_tries = 0; edit_set_tries < 5; edit_set_tries++) {
 		genModifications(editPoints, mutation_chance);
 
-		var acceptedEdits = [];
-		var rejectedEdits = [];
-
-		// TODO: accept all null modifications (originalStr === modifiedStr)
-
 		/* pseudo-code for the following algorithm
 
 		Accepted edits := none
@@ -288,6 +287,17 @@ async function mutateCodeOnPage() {
 		Use accepted edits
 		*/
 
+		var acceptedEdits = [];
+		var rejectedEdits = [];
+		var nullEdits = [];
+		var unvettedEdits = editPoints.filter((editPoint)=> {
+			if (editPoint.originalStr === editPoint.modifiedStr) {
+				nullEdits.push(editPoint);
+				return false;
+			}
+			return true;
+		});
+
 		async function recursivelyTryEditSet(unvettedEdits) {
 			// console.log("recursivelyTryEditSet", unvettedEdits);
 			if (unvettedEdits.length === 0) {
@@ -302,7 +312,6 @@ async function mutateCodeOnPage() {
 			if (!error) {
 				console.log("accepting edits:", unvettedEdits);
 				acceptedEdits = acceptedEdits.concat(unvettedEdits);
-				return;
 			} else {
 				// console.log(unvettedEdits, error);
 				if (unvettedEdits.length <= 1) {
@@ -315,7 +324,7 @@ async function mutateCodeOnPage() {
 				}
 			}
 		}
-		await recursivelyTryEditSet(editPoints);
+		await recursivelyTryEditSet(unvettedEdits);
 
 		// set code on page to use accepted edits and recompile
 		await tryEdits(doc, acceptedEdits);
@@ -327,9 +336,11 @@ async function mutateCodeOnPage() {
 		if (new_code === original_code) {
 			console.log("new_code is same as original_code, LAME");
 		} else {
-			break;
+			console.log("mutation finished", {acceptedEdits});
+			return;
 		}
 	}
+	console.log("mutation finished - unsuccessful");
 }
 
 function addButtonToUI() {
