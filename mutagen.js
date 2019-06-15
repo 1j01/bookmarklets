@@ -1,6 +1,6 @@
 function findEditPoints(code) {
 	var doc = [];
-	var editPoints = new Set();
+	var editPoints = [];
 
 	// the first group here is in lieu of negative lookbehinds in javascript,
 	// to avoid starting matching from inside an identifier
@@ -19,12 +19,32 @@ function findEditPoints(code) {
 				originalStr: num_str,
 				modifiedStr: num_str,
 			};
-			editPoints.add(editPoint);
+			editPoints.push(editPoint);
 			doc.push(editPoint);
 		}
 		lastMatchLastIndex = numbersRegExp.lastIndex;
 	}
 	doc.push(code.slice(lastMatchLastIndex));
+
+	return {doc, editPoints};
+}
+function findEditPointsSkippingLineComments(code) {
+	// TODO: loosely ignore block comments too
+	// (ignoring the complexity of things in strings, like `"// /* /*/"`, or `var rgx = /http:\/\/foo\/*/i`)
+
+	var doc = [];
+	var editPoints = [];
+
+	code.split("\n").forEach((line)=> {
+		if (line.match(/^\s*\/\//)) {
+			doc.push(line);
+		} else {
+			var lineStuff = findEditPoints(line);
+			doc = doc.concat(lineStuff.doc);
+			editPoints = editPoints.concat(lineStuff.editPoints);
+		}
+		doc.push("\n");
+	});
 
 	return {doc, editPoints};
 }
@@ -59,14 +79,14 @@ function mutateNumber(num_str, mutation_chance) {
 	return keep_as_int_or_float(n);
 }
 
-function renderDocToString(doc, editPointsSet) {
-	return doc.map((fragment)=> {
-		if (typeof fragment === "string") {
-			return fragment;
-		} else if (editPointsSet.has(fragment)) {
-			return fragment.modifiedStr;
+function renderDocToString(doc, editsToInclude) {
+	return doc.map((part)=> {
+		if (typeof part === "string") {
+			return part;
+		} else if (editsToInclude.indexOf(part)) {
+			return part.modifiedStr;
 		} else {
-			return fragment.originalStr;
+			return part.originalStr;
 		}
 	}).join("");
 }
@@ -205,19 +225,9 @@ function getAttributionHeader() {
 }
 function addOrReplaceAttributionHeader(code) {
 	var header = getAttributionHeader();
-	// if (code.indexOf(header) < 0) {
-	// 	code = header + code;
-	// }
-	// return code;
 	return header + removeAttributionHeader(code);
 }
 function removeAttributionHeader(code) {
-	// var header = getAttributionHeader();
-	// var index = code.indexOf(header);
-	// if (index >= 0) {
-	// 	code = code.slice(0, index) + code.slice(index + header.length);
-	// }
-	// return code;
 	var headerStartIndex = code.indexOf(attribution_header_start);
 	var startOfEndIndex = code.indexOf(attribution_header_end);
 	if (headerStartIndex > -1 && startOfEndIndex > -1) {
@@ -238,28 +248,24 @@ async function tryEdits(doc, edit_points) {
 	}
 }
 
-function bifurcateSet(set) {
-	var left = new Set();
-	var right = new Set();
-	var i = 0;
-	for (var item of set) {
-		(i >= set.size/2 ? right : left).add(item);
-		i++;
-	}
-	return [left, right];
+function bifurcate(array) {
+	return [
+		array.slice(0, array.length/2),
+		array.slice(array.length/2),
+	];
 }
 
 async function mutateCodeOnPage() {
 	var original_code = getCodeFromPage();
 	var mutation_chance = 0.01 + (0.5 / original_code.length);
 
-	var {doc, editPoints} = findEditPoints(original_code, mutation_chance);
+	var {doc, editPoints} = findEditPointsSkippingLineComments(original_code);
 
 	for (var edit_set_tries = 0; edit_set_tries < 5; edit_set_tries++) {
 		genModifications(editPoints, mutation_chance);
 
-		var acceptedEdits = new Set();
-		var rejectedEdits = new Set();
+		var acceptedEdits = [];
+		var rejectedEdits = [];
 
 		// TODO: accept all null modifications (originalStr === modifiedStr)
 
@@ -284,29 +290,28 @@ async function mutateCodeOnPage() {
 
 		async function recursivelyTryEditSet(unvettedEdits) {
 			// console.log("recursivelyTryEditSet", unvettedEdits);
-			if (unvettedEdits.size === 0) {
+			if (unvettedEdits.length === 0) {
 				return;
 			}
 
 			// first, apply all edits and see if it works
-			let testSet = new Set([...acceptedEdits, ...unvettedEdits]);
+			let editsToTry = [...acceptedEdits, ...unvettedEdits];
 
-			var error = await tryEdits(doc, testSet);
-			// console.log("tried testSet", testSet, "got", error);
+			var error = await tryEdits(doc, editsToTry);
+			// console.log("tried", editsToTry, "got", error);
 			if (!error) {
 				console.log("accepting edits:", unvettedEdits);
-				unvettedEdits.forEach(acceptedEdits.add, acceptedEdits);
+				acceptedEdits = acceptedEdits.concat(unvettedEdits);
 				return;
 			} else {
 				// console.log(unvettedEdits, error);
-				if (unvettedEdits.size <= 1) {
+				if (unvettedEdits.length <= 1) {
 					console.log("rejecting edits:", unvettedEdits, "because", error.message);
-					unvettedEdits.forEach(rejectedEdits.add, rejectedEdits);
+					rejectedEdits = rejectedEdits.concat(unvettedEdits);
 				} else {
-					var subsets = bifurcateSet(unvettedEdits);
-					for (var subset of subsets) {
-						await recursivelyTryEditSet(subset);
-					}
+					var [left, right] = bifurcate(unvettedEdits);
+					await recursivelyTryEditSet(left);
+					await recursivelyTryEditSet(right);
 				}
 			}
 		}
