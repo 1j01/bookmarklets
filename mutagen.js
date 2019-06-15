@@ -268,7 +268,8 @@ async function mutate_code_on_page() {
 
 	var {doc, edits} = find_edit_points_skipping_line_comments(original_code);
 
-	for (var edit_set_tries = 0; edit_set_tries < 5; edit_set_tries++) {
+	var max_edit_set_tries = 5;
+	for (var edit_set_tries = 0; edit_set_tries < max_edit_set_tries; edit_set_tries++) {
 		generate_mutations(edits, mutation_chance);
 
 		/* pseudo-code for the following algorithm
@@ -335,9 +336,15 @@ async function mutate_code_on_page() {
 		var new_code = render_doc_to_string(doc, accepted_edits);
 		new_code = add_or_replace_attribution_header(new_code);
 		var new_code_from_page = get_code_from_page();
+
+		window._original_code = original_code;
+		window._new_code = new_code;
+		window._new_code_from_page = new_code_from_page;
+
 		console.assert(new_code === new_code_from_page, "got different code from page as should have been generated");
-		if (new_code === original_code) {
-			console.log("new_code is same as original_code, LAME");
+
+		if (remove_attribution_header(new_code).trim() === remove_attribution_header(original_code).trim()) {
+			console.log(`new_code is same as original_code, LAME (edit set try: ${edit_set_tries+1}/${max_edit_set_tries})`);
 		} else {
 			console.log("mutation finished", {accepted_edits});
 			return;
