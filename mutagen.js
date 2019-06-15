@@ -1,55 +1,56 @@
-function findEditPoints(code) {
+function find_edit_points(code) {
 	var doc = [];
-	var editPoints = [];
+	var edits = [];
 
 	// the first group here is in lieu of negative lookbehinds in javascript,
 	// to avoid starting matching from inside an identifier
-	var numbersRegExp = /([^a-z0-9$_]|^)(0x[\dA-F]+|\d+(?:\.\d*)?|\.\d+)(?!e)/gi;
+	// (the last group `(?!e)` is because we don't handle exponents currently)
+	var numbers_regexp = /([^a-z0-9$_]|^)(0x[\dA-F]+|\d+(?:\.\d*)?|\.\d+)(?!e)/gi;
 	var match;
-	var lastMatchLastIndex = 0;
-	while ((match = numbersRegExp.exec(code)) !== null) {
+	var last_match_lastIndex = 0;
+	while ((match = numbers_regexp.exec(code)) !== null) {
 		var [match_str, negative_match_group_str, num_str] = match;
-		doc.push(code.slice(lastMatchLastIndex, match.index + negative_match_group_str.length));
+		doc.push(code.slice(last_match_lastIndex, match.index + negative_match_group_str.length));
 		if (isNaN(num_str)) {
 			console.warn(`somehow matched ${num_str} (full match_str = ${match_str})`);
-			doc.push(editPoint);
+			doc.push(edit);
 		} else {
-			var editPoint = {
-				type: "number",
-				originalStr: num_str,
-				modifiedStr: num_str,
+			var edit = {
+				type: "number_literal",
+				original_str: num_str,
+				mutation_str: num_str,
 			};
-			editPoints.push(editPoint);
-			doc.push(editPoint);
+			edits.push(edit);
+			doc.push(edit);
 		}
-		lastMatchLastIndex = numbersRegExp.lastIndex;
+		last_match_lastIndex = numbers_regexp.lastIndex;
 	}
-	doc.push(code.slice(lastMatchLastIndex));
+	doc.push(code.slice(last_match_lastIndex));
 
-	return {doc, editPoints};
+	return {doc, edits};
 }
-function findEditPointsSkippingLineComments(code) {
+function find_edit_points_skipping_line_comments(code) {
 	// TODO: loosely ignore block comments too
 	// (ignoring the complexity of things in strings, like `"// /* /*/"`, or `var rgx = /http:\/\/foo\/*/i`)
 
 	var doc = [];
-	var editPoints = [];
+	var edits = [];
 
 	code.split("\n").forEach((line)=> {
 		if (line.match(/^\s*\/\//)) {
 			doc.push(line);
 		} else {
-			var lineStuff = findEditPoints(line);
-			doc = doc.concat(lineStuff.doc);
-			editPoints = editPoints.concat(lineStuff.editPoints);
+			var line_stuff = find_edit_points(line);
+			doc = doc.concat(line_stuff.doc);
+			edits = edits.concat(line_stuff.edits);
 		}
 		doc.push("\n");
 	});
 
-	return {doc, editPoints};
+	return {doc, edits};
 }
 
-function mutateNumber(num_str, mutation_chance) {
+function mutate_number_literal(num_str, mutation_chance) {
 	var n = parseFloat(num_str);
 	var original_n = n;
 
@@ -79,25 +80,25 @@ function mutateNumber(num_str, mutation_chance) {
 	return keep_as_int_or_float(n);
 }
 
-function renderDocToString(doc, editsToInclude) {
+function render_doc_to_string(doc, edits_to_include) {
 	return doc.map((part)=> {
 		if (typeof part === "string") {
 			return part;
-		} else if (editsToInclude.indexOf(part)) {
-			return part.modifiedStr;
+		} else if (edits_to_include.indexOf(part)) {
+			return part.mutation_str;
 		} else {
-			return part.originalStr;
+			return part.original_str;
 		}
 	}).join("");
 }
 
-function getCodeFromPage() {
+function get_code_from_page() {
 	//var textarea = document.querySelector("#code");
 	//var original_code = textarea.value;
 	var cm = document.querySelector('.CodeMirror').CodeMirror;
 	return cm.getValue();
 }
-function setCodeOnPage(new_code) {
+function set_code_on_page(new_code) {
 	// TODO for bytebeat: would seem to need to be async
 	//textarea.focus();
 	//setTimeout(function(){
@@ -108,13 +109,13 @@ function setCodeOnPage(new_code) {
 	cm.setValue(new_code);
 }
 
-function findProblem() {
+function find_problem_in_output_on_page() {
 	// TODO: bytebeat
-	// var errorMessageEl = document.querySelector(".CodeMirror .errorMessage");
-	// if (errorMessageEl && getComputedStyle(errorMessageEl).visibility !== "hidden") {
-	var errorMessageEl = document.querySelector(".CodeMirror-linewidget .errorMessage");
-	if (errorMessageEl && getComputedStyle(errorMessageEl).visibility !== "hidden") {
-		return new Error(`compile failed: ${errorMessageEl.textContent}`);
+	// var error_message_el = document.querySelector(".CodeMirror .errorMessage");
+	// if (error_message_el && getComputedStyle(error_message_el).visibility !== "hidden") {
+	var error_message_el = document.querySelector(".CodeMirror-linewidget .errorMessage");
+	if (error_message_el && getComputedStyle(error_message_el).visibility !== "hidden") {
+		return new Error(`compile failed: ${error_message_el.textContent}`);
 	}
 	if (document.querySelector(".tab.errorYes")) {
 		return new Error("compile failed (in some tab)");
@@ -122,30 +123,31 @@ function findProblem() {
 	// TODO: maybe testing the canvas for whether it's blank (after rendering a frame) is be expensive enough
 	// that it should first do a pass just checking that it compiles, and check *at the end* if it's blank,
 	// and if it's blank then start over but checking also for blankness every time
-	if (!isOutputCanvasInteresting()) {
+	if (!is_output_canvas_interesting()) {
 		return new Error("output looks boring / blank");
 	}
 }
 
-var outputCanvas = document.querySelector("canvas#demogl, canvas.playerCanvas, #player canvas, #content canvas, canvas");
-var testCanvas = document.createElement("canvas");
-var testCtx = testCanvas.getContext("2d");
-testCanvas.width = 10;
-testCanvas.height = 10;
+var output_canvas = document.querySelector("canvas#demogl, canvas.playerCanvas, #player canvas, #content canvas, canvas");
+var test_canvas = document.createElement("canvas");
+var test_ctx = test_canvas.getContext("2d");
+test_canvas.width = 10;
+test_canvas.height = 10;
 
-function isOutputCanvasInteresting() {
-	testCtx.clearRect(0, 0, testCanvas.width, testCanvas.height);
-	testCtx.drawImage(outputCanvas, 0, 0, testCanvas.width, testCanvas.height);
+function is_output_canvas_interesting() {
+	test_ctx.clearRect(0, 0, test_canvas.width, test_canvas.height);
+	test_ctx.drawImage(output_canvas, 0, 0, test_canvas.width, test_canvas.height);
 
-	var imageData = testCtx.getImageData(0, 0, testCanvas.width, testCanvas.height);
-	var [r, g, b] = imageData.data;
+	var image_data = test_ctx.getImageData(0, 0, test_canvas.width, test_canvas.height);
+	var {data} = image_data;
+	var [r, g, b] = data;
 	var threshold = 25;
 	var interesting = false;
-	for (var i=0; i<imageData.data.length; i+=4) {
+	for (var i=0; i<data.length; i+=4) {
 		var diff =
-			Math.abs(imageData.data[i+0] - r) +
-			Math.abs(imageData.data[i+1] - g) +
-			Math.abs(imageData.data[i+2] - b);
+			Math.abs(data[i+0] - r) +
+			Math.abs(data[i+1] - g) +
+			Math.abs(data[i+2] - b);
 		if (diff > threshold) {
 			interesting = true;
 		}
@@ -153,32 +155,32 @@ function isOutputCanvasInteresting() {
 	return interesting;
 }
 
-function isCompiling() {
+function is_compiling() {
 	// TODO: bytebeat
 	return document.querySelector("#compilationTime").textContent.match(/Compiling/i);
 }
-function compileCodeOnPage() {
+function compile_code_on_page() {
 	//compile(new_code); // bytebeat
 	document.querySelector("[title~='Compile']").click(); // shadertoy
 
 	return new Promise((resolve, reject)=> {
-		function waitForCompileFinish() {
-			if (isCompiling()) {
-				setTimeout(waitForCompileFinish, 50);
+		function wait_for_compile_end() {
+			if (is_compiling()) {
+				setTimeout(wait_for_compile_end, 50);
 			} else {
 				setTimeout(()=> { // may not be needed!
-					var error = findProblem();
+					var error = find_problem_in_output_on_page();
 					if (error) { reject(error); } else { resolve(); }
 				}, 5);
 			}
 		}
-		waitForCompileFinish();
+		wait_for_compile_end();
 	});
 }
-function genModifications(editPoints, mutation_chance) {
-	for (var editPoint of editPoints) {
-		if (editPoint.type === "number") {
-			editPoint.modifiedStr = mutateNumber(editPoint.originalStr, mutation_chance);
+function generate_mutations(edits, mutation_chance) {
+	for (var edit of edits) {
+		if (edit.type === "number_literal") {
+			edit.mutation_str = mutate_number_literal(edit.original_str, mutation_chance);
 		}
 	}
 }
@@ -195,13 +197,14 @@ var attribution_header_end = `code mutation tool by Isaiah Odhner)
 // - add so many newlines only if there's a comment as the next thing (so attribution_header_end + whitespace + slash)
 // (if we're gonna handle other languages that have e.g. # for comments, we'll already need to change/disable the header)
 
-function getAttributionHeader() {
-	var shaderTitle = document.querySelector("#shaderTitle").textContent;
-	var shaderAuthorName = document.querySelector("#shaderAuthorName").textContent;
-	var shaderAuthorDate = document.querySelector("#shaderAuthorDate").textContent;
-	var shaderAuthorYear = shaderAuthorDate.replace(/-.*/, "");
+function get_attribution_header() {
+	// TODO: handle shaders being edited (don't say "Based on" I suppose? get name title from input)
+	var shader_title = document.querySelector("#shaderTitle").textContent;
+	var shader_author_name = document.querySelector("#shaderAuthorName").textContent;
+	var shader_author_date = document.querySelector("#shaderAuthorDate").textContent;
+	var shader_author_year = shader_author_date.replace(/-.*/, "");
 	var header = `// 
-// Based on "${shaderTitle}" by ${shaderAuthorName} - ${shaderAuthorYear}
+// Based on "${shader_title}" by ${shader_author_name} - ${shader_author_year}
 //
 // ${location.href}
 //
@@ -227,26 +230,26 @@ function getAttributionHeader() {
 	console.assert(header.indexOf(attribution_header_end) === header.length - attribution_header_end.length);
 	return header;
 }
-function addOrReplaceAttributionHeader(code) {
-	var header = getAttributionHeader();
-	return header + removeAttributionHeader(code);
+function add_or_replace_attribution_header(code) {
+	var header = get_attribution_header();
+	return header + remove_attribution_header(code);
 }
-function removeAttributionHeader(code) {
-	var headerStartIndex = code.indexOf(attribution_header_start);
-	var startOfEndIndex = code.indexOf(attribution_header_end);
-	if (headerStartIndex > -1 && startOfEndIndex > -1) {
-		var headerEndIndex = startOfEndIndex + attribution_header_end.length;
-		code = code.slice(0, headerStartIndex) + code.slice(headerEndIndex);
+function remove_attribution_header(code) {
+	var header_start_index = code.indexOf(attribution_header_start);
+	var end_start_index = code.indexOf(attribution_header_end);
+	if (header_start_index > -1 && end_start_index > -1) {
+		var header_end_index = end_start_index + attribution_header_end.length;
+		code = code.slice(0, header_start_index) + code.slice(header_end_index);
 	}
 	return code;
 }
 
-async function tryEdits(doc, edit_points) {
-	var new_code = renderDocToString(doc, edit_points);
-	new_code = addOrReplaceAttributionHeader(new_code);
-	setCodeOnPage(new_code);
+async function try_edits(doc, edit_points) {
+	var new_code = render_doc_to_string(doc, edit_points);
+	new_code = add_or_replace_attribution_header(new_code);
+	set_code_on_page(new_code);
 	try {
-		await compileCodeOnPage(new_code);
+		await compile_code_on_page(new_code);
 	} catch (error) {
 		return error;
 	}
@@ -259,14 +262,14 @@ function bifurcate(array) {
 	];
 }
 
-async function mutateCodeOnPage() {
-	var original_code = getCodeFromPage();
+async function mutate_code_on_page() {
+	var original_code = get_code_from_page();
 	var mutation_chance = 0.01 + (0.5 / original_code.length);
 
-	var {doc, editPoints} = findEditPointsSkippingLineComments(original_code);
+	var {doc, edits} = find_edit_points_skipping_line_comments(original_code);
 
 	for (var edit_set_tries = 0; edit_set_tries < 5; edit_set_tries++) {
-		genModifications(editPoints, mutation_chance);
+		generate_mutations(edits, mutation_chance);
 
 		/* pseudo-code for the following algorithm
 
@@ -287,63 +290,63 @@ async function mutateCodeOnPage() {
 		Use accepted edits
 		*/
 
-		var acceptedEdits = [];
-		var rejectedEdits = [];
-		var nullEdits = [];
-		var unvettedEdits = editPoints.filter((editPoint)=> {
-			if (editPoint.originalStr === editPoint.modifiedStr) {
-				nullEdits.push(editPoint);
+		var accepted_edits = [];
+		var rejected_edits = [];
+		var null_edits = [];
+		var unvetted_edits = edits.filter((edit)=> {
+			if (edit.original_str === edit.mutation_str) {
+				null_edits.push(edit);
 				return false;
 			}
 			return true;
 		});
 
-		async function recursivelyTryEditSet(unvettedEdits) {
-			// console.log("recursivelyTryEditSet", unvettedEdits);
-			if (unvettedEdits.length === 0) {
+		async function recursively_try_edit_set(unvetted_edits) {
+			// console.log("recursively_try_edit_set", unvetted_edits);
+			if (unvetted_edits.length === 0) {
 				return;
 			}
 
 			// first, apply all edits and see if it works
-			let editsToTry = [...acceptedEdits, ...unvettedEdits];
+			let edits_to_try = [...accepted_edits, ...unvetted_edits];
 
-			var error = await tryEdits(doc, editsToTry);
-			// console.log("tried", editsToTry, "got", error);
+			var error = await try_edits(doc, edits_to_try);
+			// console.log("tried", edits_to_try, "got", error);
 			if (!error) {
-				console.log("accepting edits:", unvettedEdits);
-				acceptedEdits = acceptedEdits.concat(unvettedEdits);
+				console.log("accepting edits:", unvetted_edits);
+				accepted_edits = accepted_edits.concat(unvetted_edits);
 			} else {
-				// console.log(unvettedEdits, error);
-				if (unvettedEdits.length <= 1) {
-					console.log("rejecting edits:", unvettedEdits, "because", error.message);
-					rejectedEdits = rejectedEdits.concat(unvettedEdits);
+				// console.log(unvetted_edits, error);
+				if (unvetted_edits.length <= 1) {
+					console.log("rejecting edits:", unvetted_edits, "because", error.message);
+					rejected_edits = rejected_edits.concat(unvetted_edits);
 				} else {
-					var [left, right] = bifurcate(unvettedEdits);
-					await recursivelyTryEditSet(left);
-					await recursivelyTryEditSet(right);
+					var [left, right] = bifurcate(unvetted_edits);
+					await recursively_try_edit_set(left);
+					await recursively_try_edit_set(right);
 				}
 			}
 		}
-		await recursivelyTryEditSet(unvettedEdits);
+		await recursively_try_edit_set(unvetted_edits);
 
 		// set code on page to use accepted edits and recompile
-		await tryEdits(doc, acceptedEdits);
+		await try_edits(doc, accepted_edits);
 
-		var new_code = renderDocToString(doc, acceptedEdits);
-		new_code = addOrReplaceAttributionHeader(new_code);
-		var new_code_from_page = getCodeFromPage();
+		var new_code = render_doc_to_string(doc, accepted_edits);
+		new_code = add_or_replace_attribution_header(new_code);
+		var new_code_from_page = get_code_from_page();
 		console.assert(new_code === new_code_from_page, "got different code from page as should have been generated");
 		if (new_code === original_code) {
 			console.log("new_code is same as original_code, LAME");
 		} else {
-			console.log("mutation finished", {acceptedEdits});
+			console.log("mutation finished", {accepted_edits});
 			return;
 		}
 	}
 	console.log("mutation finished - unsuccessful");
 }
 
-function addButtonToUI() {
+function add_button_to_page() {
 	var button = document.getElementById("mutate") || document.createElement("button");
 	button.id = "mutate";
 	button.textContent = "☢ MUTATE ☢";
@@ -355,11 +358,11 @@ function addButtonToUI() {
 	} else {
 		toolbar.appendChild(button);
 	}
-	button.onclick = mutateCodeOnPage;
+	button.onclick = mutate_code_on_page;
 }
 
-await mutateCodeOnPage();
-addButtonToUI();
+await mutate_code_on_page();
+add_button_to_page();
 
 /*
 TODO: protect against starting while already running, maybe have a stop button
