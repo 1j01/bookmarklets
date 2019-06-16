@@ -153,10 +153,16 @@ var css = `
 	transform: scale(0.2);
 	transform-origin: bottom right;
 	transition: transform .2s ease;
+	overflow: auto;
+	text-align: center;
 }
 #mutagen-thumbnails-container:hover,
 #mutagen-thumbnails-container:focus-within {
 	transform: scale(1);
+}
+.mutagen-thumbnail {
+	cursor: pointer;
+	vertical-align: top;
 }
 `;
 var style = document.createElement("style");
@@ -177,6 +183,28 @@ document.body.appendChild(thumbnails_container);
 for (var thumbnail of thumbnails) {
 	thumbnails_container.appendChild(thumbnail);
 }
+thumbnails_container.addEventListener("click", (event)=> {
+	if (!event.target.classList.contains("mutagen-thumbnail")) {
+		return;
+	}
+	var thumbnail_img = event.target;
+	try {
+		window.mutagen_stop();
+	} catch(e) {}
+	set_code_on_page(thumbnail_img.dataset.code);
+	compile_code_on_page();
+});
+thumbnails_container.addEventListener("dblclick", (event)=> {
+	if (!event.target.classList.contains("mutagen-thumbnail")) {
+		return;
+	}
+	var thumbnail_img = event.target;
+	try {
+		window.mutagen_stop();
+	} catch(e) {}
+	set_code_on_page(thumbnail_img.dataset.code);
+	mutate_code_on_page();
+});
 
 function record_thumbnail() {
 	var code = get_code_from_page();
@@ -194,14 +222,6 @@ function record_thumbnail() {
 	thumbnail_img.dataset.code = code;
 	thumbnail_img.tabIndex = 0;
 	thumbnail_img.setAttribute("role", "button");
-	thumbnail_img.style.cursor = "pointer";
-	thumbnail_img.onclick = ()=> {
-		try {
-			window.mutagen_stop();
-		} catch(e) {}
-		set_code_on_page(code);
-		compile_code_on_page();
-	};
 	thumbnails_container.appendChild(thumbnail_img);
 }
 record_thumbnail();
