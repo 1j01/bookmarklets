@@ -148,7 +148,12 @@ function record_thumbnail() {
 	thumbnail_img.height = thumbnail_canvas.height;
 	document.body.appendChild(thumbnail_img);
 
+	thumbnail_img.setAttribute("role", "button");
+	thumbnail_img.style.cursor = "pointer";
 	thumbnail_img.onclick = ()=> {
+		try {
+			window.mutagen_stop();
+		} catch(e) {}
 		set_code_on_page(code);
 		compile_code_on_page();
 	};
