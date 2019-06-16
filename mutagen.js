@@ -427,6 +427,10 @@ present a grid of thumbnails of a bunch of variations to pick from
 	rows could be from progressively accepting subsets of one changeset,
 	and then there'd be a few rows, with totally different changesets
 
+if you're going to be creating a bunch of programs with similar structure,
+	breeding could be an option
+	(not to mention possibilities of merging unrelated programs by applying random functions between them etc., or reconciling semi-related programs by correlating them)
+
 operate on selection if there's a selection (and update bounds of selection)
 	multiple selections
 
@@ -438,4 +442,8 @@ platform support
 wrap values sometimes in a function, like i did for:
 	https://www.khanacademy.org/computer-programming/phantasmagoria/2540238893
 	https://www.khanacademy.org/computer-programming/phantasmagoria-plus/6066580222902272
+
+a mode where mutations are applied only after the time when they were applied
+	allowing for playback of the history of mutation
+	time > ${get_time_from_page()} ? mutation : original
 */
