@@ -199,8 +199,7 @@ function generate_mutations(edits) {
 	// console.log(`${num_edits} possible edits in ${tries_to_reach_min_edits} tries`);
 }
 
-var attribution_header_start = `// 
-// Based on "`;
+var attribution_header_start = `// Based on "`;
 var attribution_header_end = `code mutation tool by Isaiah Odhner)
 
 
@@ -217,23 +216,18 @@ function get_attribution_header() {
 	var shader_author_name = document.querySelector("#shaderAuthorName").textContent;
 	var shader_author_date = document.querySelector("#shaderAuthorDate").textContent;
 	var shader_author_year = shader_author_date.replace(/-.*/, "");
-	var header = `// 
-// Based on "${shader_title}" by ${shader_author_name} - ${shader_author_year}
+	var header = `// Based on "${shader_title}" by ${shader_author_name} - ${shader_author_year}
 //
 // ${location.href}
 //
 //
-// randomly modified with...
+// randomly mutated with...
 // 
-//  _   .-')                .-') _      ('-.                   ('-.       .-') _  
-// ( '.( OO )_             (  OO) )    ( OO ).-.             _(  OO)     ( OO ) ) 
-//  ,--.   ,--.),--. ,--.  /     '._   / . --. /  ,----.    (,------.,--./ ,--,'  
-//  |   \`.'   | |  | |  |  |'--...__)  | \-.  \  '  .-./-')  |  .---'|   \ |  |\  
-//  |         | |  | | .-')'--.  .--'.-'-'  |  | |  |_( O- ) |  |    |    \|  | ) 
-//  |  |'.'|  | |  |_|( OO )  |  |    \| |_.'  | |  | .--, \(|  '--. |  .     |/  
-//  |  |   |  | |  | | \`-' /  |  |     |  .-.  |(|  | '. (_/ |  .--' |  |\    |   
-//  |  |   |  |('  '-'(_.-'   |  |     |  | |  | |  '--'  |  |  \`---.|  | \   |   
-//  \`--'   \`--'  \`-----'      \`--'     \`--' \`--'  \`------'   \`------'\`--'  \`--'
+// • ▌ ▄ ·. ▄• ▄▌▄▄▄▄▄ ▄▄▄·  ▄▄ • ▄▄▄ . ▐ ▄ 
+// ·██ ▐███▪█▪██▌•██  ▐█ ▀█ ▐█ ▀ ▪▀▄.▀·•█▌▐█
+// ▐█ ▌▐▌▐█·█▌▐█▌ ▐█.▪▄█▀▀█ ▄█ ▀█▄▐▀▀▪▄▐█▐▐▌
+// ██ ██▌▐█▌▐█▄█▌ ▐█▌·▐█ ▪▐▌▐█▄▪▐█▐█▄▄▌██▐█▌
+// ▀▀  █▪▀▀▀ ▀▀▀  ▀▀▀  ▀  ▀ ·▀▀▀▀  ▀▀▀ ▀▀ █▪
 // 
 // (MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)
 
