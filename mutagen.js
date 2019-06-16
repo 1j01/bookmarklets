@@ -195,16 +195,8 @@ function generate_mutations(edits) {
 	// console.log(`${num_edits} possible edits in ${tries_to_reach_min_edits} tries`);
 }
 
-var attribution_header_start = `// Based on "`;
-var attribution_header_end = `code mutation tool by Isaiah Odhner)
-
-
-
-`;
-// TODO: handle newlines after header specially
-// - don't include it as an important sentinel for deduplicating the attribution header
-// - add so many newlines only if there's a comment as the next thing (so attribution_header_end + whitespace + slash)
-// (if we're gonna handle other languages that have e.g. # for comments, we'll already need to change/disable the header)
+var attribution_header_start = `// Based on `;
+var attribution_header_end = `code mutation tool by Isaiah Odhner)`;
 
 function get_attribution_header() {
 	// TODO: handle shaders being edited (don't say "Based on" I suppose? get name title from input)
@@ -225,18 +217,22 @@ function get_attribution_header() {
 // ██ ██▌▐█▌▐█▄█▌ ▐█▌·▐█ ▪▐▌▐█▄▪▐█▐█▄▄▌██▐█▌
 // ▀▀  █▪▀▀▀ ▀▀▀  ▀▀▀  ▀  ▀ ·▀▀▀▀  ▀▀▀ ▀▀ █▪
 // 
-// (MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)
-
-
-
-`;
+// (MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)`;
 	console.assert(header.indexOf(attribution_header_start) === 0);
 	console.assert(header.indexOf(attribution_header_end) === header.length - attribution_header_end.length);
 	return header;
 }
 function add_or_replace_attribution_header(code) {
 	var header = get_attribution_header();
-	return header + remove_attribution_header(code);
+	code = remove_attribution_header(code);
+	// this is pretty silly trying to be language-agnostic here
+	// (if we're gonna handle other languages that have e.g. # for comments, we'll already need to change/disable the header)
+	// (and alternatively we could detect the language when adding support for coffeescript and python and all that)
+	// but -- = lua, # = coffeescript, python, avoiding matching preprocessor directives
+	var next_is_comment = code.match(/^\s*(\/[/*]|--|#(?!if|define|pragma|extension|include|version|error))/);
+	var newlines = next_is_comment ? "\n\n\n\n\n" : "\n\n\n";
+	code = header + newlines + code.replace(/^\s*\n/, "");
+	return code;
 }
 function remove_attribution_header(code) {
 	var header_start_index = code.indexOf(attribution_header_start);
