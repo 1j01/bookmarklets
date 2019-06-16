@@ -84,7 +84,7 @@ function render_doc_to_string(doc, edits_to_include) {
 	return doc.map((part)=> {
 		if (typeof part === "string") {
 			return part;
-		} else if (edits_to_include.indexOf(part)) {
+		} else if (edits_to_include.includes(part)) {
 			return part.mutation_str;
 		} else {
 			return part.original_str;
@@ -353,6 +353,9 @@ async function mutate_code_on_page() {
 		if (remove_attribution_header(new_code).trim() === remove_attribution_header(original_code).trim()) {
 			console.log(`new_code is same as original_code, LAME (edit set try: ${edit_set_tries+1}/${max_edit_set_tries})`);
 		} else {
+			if (accepted_edits.length === 0) {
+				console.warn("how are these different? window._new_code and window._original_code");
+			}
 			console.log("mutation finished", {accepted_edits});
 			return;
 		}
