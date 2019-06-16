@@ -149,12 +149,19 @@ var css = `
 	height: 50%;
 	z-index: 10;
 	background: rgba(0, 0, 0, 0.5);
-	padding: 15px;
 	transform: scale(0.2);
 	transform-origin: bottom right;
 	transition: transform .2s ease;
 	overflow: auto;
-	text-align: center;
+
+	display: grid;
+	grid-template-columns: repeat(auto-fill, ${thumbnail_canvas.width}px);
+	grid-gap: 10px;
+	justify-content: center;
+	align-content: flex-start;
+	margin: 0 auto;
+	padding-top: 15px;
+	padding-bottom: 15px; /* doesn't seem to work */
 }
 #mutagen-thumbnails-container:hover,
 #mutagen-thumbnails-container:focus-within {
