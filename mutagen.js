@@ -141,9 +141,26 @@ if (existing_style) {
 	existing_style.remove();
 }
 var css = `
-
+#mutagen-thumbnails-container {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 100%;
+	height: 50%;
+	z-index: 10;
+	background: rgba(0, 0, 0, 0.5);
+	padding: 15px;
+	transform: scale(0.2);
+	transform-origin: bottom right;
+	transition: transform .2s ease;
+}
+#mutagen-thumbnails-container:hover,
+#mutagen-thumbnails-container:focus-within {
+	transform: scale(1);
+}
 `;
 var style = document.createElement("style");
+style.id = "mutagen-style";
 document.head.appendChild(style);
 style.type = "text/css";
 style.appendChild(document.createTextNode(css));
@@ -157,21 +174,6 @@ if (existing_thumbnails_container) {
 var thumbnails_container = document.createElement("div");
 thumbnails_container.id = "mutagen-thumbnails-container";
 document.body.appendChild(thumbnails_container);
-thumbnails_container.style.position = "absolute";
-thumbnails_container.style.right = "0";
-thumbnails_container.style.bottom = "0";
-thumbnails_container.style.width = "100%";
-thumbnails_container.style.height = "50%";
-thumbnails_container.style.zIndex = "10";
-thumbnails_container.style.background = "rgba(0, 0, 0, 0.5)";
-thumbnails_container.style.padding = "15px";
-thumbnails_container.style.transform = "scale(0.2)";
-thumbnails_container.style.transformOrigin = "bottom right";
-thumbnails_container.style.transition = "transform .2s ease";
-thumbnails_container.onmouseenter = ()=> 
-	thumbnails_container.style.transform = "scale(1)";
-thumbnails_container.onmouseleave = ()=> 
-	thumbnails_container.style.transform = "scale(0.2)";
 for (var thumbnail of thumbnails) {
 	thumbnails_container.appendChild(thumbnail);
 }
@@ -190,6 +192,7 @@ function record_thumbnail() {
 	thumbnail_img.width = thumbnail_canvas.width;
 	thumbnail_img.height = thumbnail_canvas.height;
 	thumbnail_img.dataset.code = code;
+	thumbnail_img.tabIndex = 0;
 	thumbnail_img.setAttribute("role", "button");
 	thumbnail_img.style.cursor = "pointer";
 	thumbnail_img.onclick = ()=> {
