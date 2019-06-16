@@ -65,8 +65,6 @@ function mutate_number_literal(num_str, mutation_chance) {
 		return `${n}`;
 	}
 
-	// console.log(`mutate ${num_str}`, {n, had_dot, num_str});
-
 	if (Math.random() < mutation_chance) { n += 1; }
 	if (Math.random() < mutation_chance) { n -= 1; }
 	if (Math.random() < mutation_chance) { n /= 2; }
@@ -111,8 +109,6 @@ function set_code_on_page(new_code) {
 
 function find_problem_in_output_on_page() {
 	// TODO: bytebeat
-	// var error_message_el = document.querySelector(".CodeMirror .errorMessage");
-	// if (error_message_el && getComputedStyle(error_message_el).visibility !== "hidden") {
 	var error_message_el = document.querySelector(".CodeMirror-linewidget .errorMessage");
 	if (error_message_el && getComputedStyle(error_message_el).visibility !== "hidden") {
 		return new Error(`compile failed: ${error_message_el.textContent}`);
@@ -252,8 +248,8 @@ function remove_attribution_header(code) {
 	return code;
 }
 
-async function try_edits(doc, edit_points) {
-	var new_code = render_doc_to_string(doc, edit_points);
+async function try_edits(doc, edits_to_include) {
+	var new_code = render_doc_to_string(doc, edits_to_include);
 	new_code = add_or_replace_attribution_header(new_code);
 	set_code_on_page(new_code);
 	try {
@@ -344,18 +340,12 @@ async function mutate_code_on_page() {
 		new_code = add_or_replace_attribution_header(new_code);
 		var new_code_from_page = get_code_from_page();
 
-		window._original_code = original_code;
-		window._new_code = new_code;
-		window._new_code_from_page = new_code_from_page;
-
 		console.assert(new_code === new_code_from_page, "got different code from page as should have been generated");
 
 		if (remove_attribution_header(new_code).trim() === remove_attribution_header(original_code).trim()) {
 			console.log(`new_code is same as original_code, LAME (edit set try: ${edit_set_tries+1}/${max_edit_set_tries})`);
 		} else {
-			if (accepted_edits.length === 0) {
-				console.warn("how are these different? window._new_code and window._original_code");
-			}
+			console.assert(accepted_edits.length > 0);
 			console.log("mutation finished", {accepted_edits});
 			return;
 		}
