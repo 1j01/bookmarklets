@@ -177,12 +177,26 @@ function compile_code_on_page() {
 		wait_for_compile_end();
 	});
 }
-function generate_mutations(edits, mutation_chance) {
-	for (var edit of edits) {
-		if (edit.type === "number_literal") {
-			edit.mutation_str = mutate_number_literal(edit.original_str, mutation_chance);
+function generate_mutations(edits) {
+	var mutation_chance = 0.01 + (0.5 / edits.length);
+	var min_edits = 5;
+	var max_tries_to_reach_min_edits = 50;
+	var tries_to_reach_min_edits = 0;
+	var num_edits;
+	do {
+		for (var edit of edits) {
+			if (edit.type === "number_literal") {
+				edit.mutation_str = mutate_number_literal(edit.original_str, mutation_chance);
+			}
 		}
-	}
+		num_edits = edits.reduce((acc, edit)=> {
+			return acc + (edit.original_str !== edit.mutation_str);
+		}, 0);
+		tries_to_reach_min_edits++;
+		mutation_chance *= 1.5;
+		// console.log(`${num_edits} possible edits`);
+	} while (tries_to_reach_min_edits < max_tries_to_reach_min_edits && num_edits < min_edits);
+	// console.log(`${num_edits} possible edits in ${tries_to_reach_min_edits} tries`);
 }
 
 var attribution_header_start = `// 
@@ -264,27 +278,12 @@ function bifurcate(array) {
 
 async function mutate_code_on_page() {
 	var original_code = get_code_from_page();
-	var mutation_chance = 0.01 + (0.5 / original_code.length);
 
 	var {doc, edits} = find_edit_points_skipping_line_comments(original_code);
 
 	var max_edit_set_tries = 5;
 	for (var edit_set_tries = 0; edit_set_tries < max_edit_set_tries; edit_set_tries++) {
-		// TODO: move this logic into generate_mutations
-		var min_edits = 5;
-		var max_tries_to_reach_min_edits = 50;
-		var tries_to_reach_min_edits = 0;
-		var num_edits;
-		do {
-			generate_mutations(edits, mutation_chance);
-			num_edits = edits.reduce((acc, edit)=> {
-				return acc + (edit.original_str !== edit.mutation_str);
-			}, 0);
-			tries_to_reach_min_edits++;
-			mutation_chance *= 1.5;
-			// console.log(`${num_edits} possible edits`);
-		} while (tries_to_reach_min_edits < max_tries_to_reach_min_edits && num_edits < min_edits);
-		// console.log(`${num_edits} possible edits in ${tries_to_reach_min_edits} tries`);
+		generate_mutations(edits);
 
 		/* pseudo-code for the following algorithm
 
