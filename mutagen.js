@@ -125,10 +125,35 @@ function find_problem_in_output_on_page() {
 }
 
 var output_canvas = document.querySelector("canvas#demogl, canvas.playerCanvas, #player canvas, #content canvas, canvas");
+
 var test_canvas = document.createElement("canvas");
 var test_ctx = test_canvas.getContext("2d");
 test_canvas.width = 10;
 test_canvas.height = 10;
+
+var thumbnail_canvas = document.createElement("canvas");
+var thumbnail_ctx = thumbnail_canvas.getContext("2d");
+thumbnail_canvas.width = 200;
+thumbnail_canvas.height = thumbnail_canvas.width * output_canvas.height / output_canvas.width;
+
+var thumbnails = [];
+function record_thumbnail() {
+	var code = get_code_from_page();
+
+	var thumbnail_img = document.createElement("img");
+	thumbnail_ctx.clearRect(0, 0, thumbnail_canvas.width, thumbnail_canvas.height);
+	thumbnail_ctx.drawImage(output_canvas, 0, 0, thumbnail_canvas.width, thumbnail_canvas.height);
+	thumbnail_img.src = thumbnail_canvas.toDataURL();
+	thumbnail_img.width = thumbnail_canvas.width;
+	thumbnail_img.height = thumbnail_canvas.height;
+	document.body.appendChild(thumbnail_img);
+
+	thumbnail_img.onclick = ()=> {
+		set_code_on_page(code);
+		compile_code_on_page();
+	};
+}
+record_thumbnail();
 
 function is_output_canvas_interesting() {
 	test_ctx.clearRect(0, 0, test_canvas.width, test_canvas.height);
@@ -334,6 +359,7 @@ async function mutate_code_on_page() {
 			if (!error) {
 				console.log("accepting edits:", unvetted_edits);
 				accepted_edits = accepted_edits.concat(unvetted_edits);
+				record_thumbnail();
 			} else {
 				// console.log(unvetted_edits, error);
 				if (unvetted_edits.length <= 1) {
@@ -421,11 +447,17 @@ add_buttons_to_page();
 mutate_code_on_page();
 
 /*
+TODO: protect against switching tabs while mutations are being made
+also detect errors only in selected tab
+
 Some other things that would be good:
 
-present a grid of thumbnails of a bunch of variations to pick from
+present a grid of thumbnails of a bunch of variations to pick from.......
 	rows could be from progressively accepting subsets of one changeset,
 	and then there'd be a few rows, with totally different changesets
+	or i think just a nonlinear (because you can jump back) ever expanding list (except for memory concerns) would be good
+	possibly with animation (a few frames)? (on hover?)
+	possibly with collapsing stacks of similar looking frames? (would need a similarity metric)
 
 if you're going to be creating a bunch of programs with similar structure,
 	breeding could be an option
