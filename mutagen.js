@@ -136,18 +136,60 @@ var thumbnail_ctx = thumbnail_canvas.getContext("2d");
 thumbnail_canvas.width = 200;
 thumbnail_canvas.height = thumbnail_canvas.width * output_canvas.height / output_canvas.width;
 
-var thumbnails = [];
+var existing_style = document.querySelector("#mutagen-style");
+if (existing_style) {
+	existing_style.remove();
+}
+var css = `
+
+`;
+var style = document.createElement("style");
+document.head.appendChild(style);
+style.type = "text/css";
+style.appendChild(document.createTextNode(css));
+
+
+var thumbnails = Array.from(document.querySelectorAll(".mutagen-thumbnail"));
+var existing_thumbnails_container = document.querySelector("#mutagen-thumbnails-container"); // history palette / specimen palette
+if (existing_thumbnails_container) {
+	existing_thumbnails_container.remove();
+}
+var thumbnails_container = document.createElement("div");
+thumbnails_container.id = "mutagen-thumbnails-container";
+document.body.appendChild(thumbnails_container);
+thumbnails_container.style.position = "absolute";
+thumbnails_container.style.right = "0";
+thumbnails_container.style.bottom = "0";
+thumbnails_container.style.width = "100%";
+thumbnails_container.style.height = "50%";
+thumbnails_container.style.zIndex = "10";
+thumbnails_container.style.background = "rgba(0, 0, 0, 0.5)";
+thumbnails_container.style.padding = "15px";
+thumbnails_container.style.transform = "scale(0.2)";
+thumbnails_container.style.transformOrigin = "bottom right";
+thumbnails_container.style.transition = "transform .2s ease";
+thumbnails_container.onmouseenter = ()=> 
+	thumbnails_container.style.transform = "scale(1)";
+thumbnails_container.onmouseleave = ()=> 
+	thumbnails_container.style.transform = "scale(0.2)";
+for (var thumbnail of thumbnails) {
+	thumbnails_container.appendChild(thumbnail);
+}
+
 function record_thumbnail() {
 	var code = get_code_from_page();
+	if (thumbnails.some((el)=> el.dataset.code === code)) {
+		return;
+	}
 
 	var thumbnail_img = document.createElement("img");
+	thumbnail_img.className = "mutagen-thumbnail";
 	thumbnail_ctx.clearRect(0, 0, thumbnail_canvas.width, thumbnail_canvas.height);
 	thumbnail_ctx.drawImage(output_canvas, 0, 0, thumbnail_canvas.width, thumbnail_canvas.height);
 	thumbnail_img.src = thumbnail_canvas.toDataURL();
 	thumbnail_img.width = thumbnail_canvas.width;
 	thumbnail_img.height = thumbnail_canvas.height;
-	document.body.appendChild(thumbnail_img);
-
+	thumbnail_img.dataset.code = code;
 	thumbnail_img.setAttribute("role", "button");
 	thumbnail_img.style.cursor = "pointer";
 	thumbnail_img.onclick = ()=> {
@@ -157,6 +199,7 @@ function record_thumbnail() {
 		set_code_on_page(code);
 		compile_code_on_page();
 	};
+	thumbnails_container.appendChild(thumbnail_img);
 }
 record_thumbnail();
 
@@ -166,6 +209,11 @@ function is_output_canvas_interesting() {
 
 	var image_data = test_ctx.getImageData(0, 0, test_canvas.width, test_canvas.height);
 	var {data} = image_data;
+
+	// TODO: test for maybe 40% of any of four sides being blank
+	// and actually give a scalar fitness rating
+	// TODO: make it more perceptual in the color difference, i.e. treating similar brightnesses more similarly
+	// and maybe don't look at the very edges because just a vignette isn't very interesting
 	var [r, g, b] = data;
 	var threshold = 25;
 	var interesting = false;
