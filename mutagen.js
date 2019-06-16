@@ -263,7 +263,22 @@ function bifurcate(array) {
 }
 
 async function mutate_code_on_page() {
+	try {
+		window.mutagen_stop();
+	} catch(e) {}
+
 	var original_code = get_code_from_page();
+
+	var stopped = false;
+	window.mutagen_stop = ()=> {
+		if (stopped) {
+			return;
+		}
+		stopped = true;
+		console.log("abort - reset to original code");
+		set_code_on_page(original_code);
+		compile_code_on_page();
+	};
 
 	var {doc, edits} = find_edit_points_skipping_line_comments(original_code);
 
@@ -306,6 +321,10 @@ async function mutate_code_on_page() {
 			if (unvetted_edits.length === 0) {
 				return;
 			}
+			if (stopped) {
+				console.log("abort from recursively_try_edit_set");
+				return;
+			}
 
 			// first, apply all edits and see if it works
 			let edits_to_try = [...accepted_edits, ...unvetted_edits];
@@ -329,6 +348,11 @@ async function mutate_code_on_page() {
 		}
 		await recursively_try_edit_set(unvetted_edits);
 
+		if (stopped) {
+			console.log("abort from mutate_code_on_page");
+			return;
+		}
+
 		// set code on page to use accepted edits and recompile
 		await try_edits(doc, accepted_edits);
 
@@ -343,33 +367,60 @@ async function mutate_code_on_page() {
 		} else {
 			console.assert(accepted_edits.length > 0);
 			console.log("mutation finished", {accepted_edits});
+			stopped = true;
 			return;
 		}
 	}
 	console.log("mutation finished - unsuccessful");
+	stopped = true;
 }
 
-function add_button_to_page() {
-	var button = document.getElementById("mutate") || document.createElement("button");
-	button.id = "mutate";
-	button.textContent = "☢ MUTATE ☢";
+function add_buttons_to_page() {
+	var existingButton = document.getElementById("mutate");
+	if (existingButton) { existingButton.remove(); }
+	var existingButton = document.getElementById("mutagen-abort");
+	if (existingButton) { existingButton.remove(); }
+
+	var mutateButton = document.createElement("button");
+	mutateButton.id = "mutate";
+	mutateButton.textContent = "☢ MUTATE ☢";
+	mutateButton.onclick = async function() {
+		mutateButton.disabled = true;
+		abortButton.disabled = false;
+		await mutate_code_on_page();
+		mutateButton.disabled = false;
+		abortButton.disabled = true;
+	};
+
+	var abortButton = document.createElement("button");
+	abortButton.id = "mutagen-abort";
+	abortButton.textContent = "ABORT";
+	abortButton.onclick = ()=> {
+		window.mutagen_stop();
+		abortButton.disabled = true;
+		setTimeout(()=> { mutateButton.disabled = false; }, 200);
+	};
+
 	var toolbar = document.querySelector("#toolBar, #toolbar, #tool-bar, #controls");
 	if (location.hostname.match(/ShaderToy/i)) {
 		// let's not bother trying to fit in a layout based around absolute positions
 		// just insert it below the toolbar
-		toolbar.parentElement.insertBefore(button, toolbar.nextSibling);
+		toolbar.parentElement.insertBefore(abortButton, toolbar.nextSibling);
+		toolbar.parentElement.insertBefore(mutateButton, toolbar.nextSibling);
 	} else {
-		toolbar.appendChild(button);
+		toolbar.appendChild(mutateButton);
+		toolbar.appendChild(abortButton);
 	}
-	button.onclick = mutate_code_on_page;
 }
 
-await mutate_code_on_page();
-add_button_to_page();
+try {
+	window.mutagen_stop();
+} catch(e) {}
+
+add_buttons_to_page();
+mutate_code_on_page();
 
 /*
-TODO: protect against starting while already running, maybe have a stop button
-
 Some other things that would be good:
 
 present a grid of thumbnails of a bunch of variations to pick from
