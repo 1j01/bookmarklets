@@ -347,7 +347,8 @@ function draw_logo() {
 				[(1 - 0.25 * m_slantedness) * m_width, 0],
 				[1 * m_width, 1],
 			],
-			kern_after: m_width - 1 - m_slantedness * 0.2,
+			width: m_width,
+			kern_after: -m_slantedness * 0.2,
 		},
 		{
 			letter: "U",
@@ -428,10 +429,11 @@ function draw_logo() {
 	var rand2 = Math.random();
 	var lw_inc = 0;
 	for (var letter of letter_data) {
-		var {points, kern_after} = letter;
-		// TODO: separate out letter width concept from kerning - negative kerns shouldn't be scaled like this
+		var {points, width, kern_after} = letter;
+		width = width || 1;
+		kern_after = kern_after || 0;
 		var letter_width_scale = 1 + Math.random() * 0.4;
-		var letter_width = (1 + (kern_after || 0)) * letter_width_scale;
+		var letter_width = width * letter_width_scale;
 		logo_ctx.save();
 		logo_ctx.scale(letter_width_scale, 1);
 		// TODO: increase letter spacing around rotated letters
@@ -453,7 +455,7 @@ function draw_logo() {
 			logo_ctx.stroke();
 		}
 		logo_ctx.restore();
-		logo_ctx.translate(letter_width + letter_spacing, 0);
+		logo_ctx.translate(letter_width + letter_spacing + kern_after, 0);
 	}
 	logo_ctx.restore();
 
