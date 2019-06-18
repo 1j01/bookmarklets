@@ -338,16 +338,8 @@ function draw_logo() {
 	logo_ctx.stroke();
 	logo_ctx.restore();
 	var logo = "";
-// 	for (var lower_right=0; lower_right<=1; lower_right++) {
-// 	for (var lower_left=0; lower_left<=1; lower_left++) {
-// 	for (var upper_right=0; upper_right<=1; upper_right++) {
-// 	for (var upper_left=0; upper_left<=1; upper_left++) {
-// 		console.log(`
-// ${upper_left ? "#" : "-"}${upper_right ? "#" : "-"}
-// ${lower_left ? "#" : "-"}${lower_right ? "#" : "-"}
-// `);
-// 	}}}}
-	var chars = " |▘|▝|▀|▖|▌|▞|▛|▗|▚|▐|▜|▄|▙|▟|█".split("|");
+	// var chars = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"; // pure
+	var chars = "▁▘▝▛▖▛▞▛▗▚▜▜▅▙▟▇"; // actually fixed width
 	var image_data = logo_ctx.getImageData(0, 0, logo_canvas.width, logo_canvas.height);
 	var at = (x, y)=>
 		(image_data.data[
@@ -371,6 +363,7 @@ function draw_logo() {
 	// 	}
 	// 	logo += "\n";
 	// }
+	logo = logo.replace(/▁/g, ()=> choose("▁▁▁▁▁▁▂▁▂▁▂▁▂▔▔▔▔▕▕▘▘▘▘▝▝▗▗▞▚"));
 	return logo;
 }
 
