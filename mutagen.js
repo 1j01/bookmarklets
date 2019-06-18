@@ -306,7 +306,7 @@ function generate_mutations(edits) {
 var logo_canvas = document.createElement("canvas");
 var logo_ctx = logo_canvas.getContext("2d");
 logo_canvas.width = 100;
-logo_canvas.height = 12;
+logo_canvas.height = 10;
 
 // for debug
 var existing_logo_canvas = document.getElementById("mutagen-logo-canvas-debug");
@@ -338,11 +338,11 @@ function draw_logo() {
 			points: [
 				[0, 1],
 				[0, 0],
-				[0.5*1.2, 1],
-				[1*1.2, 0],
-				[1*1.2, 1],
+				[0.5*1.6, 1],
+				[1*1.6, 0],
+				[1*1.6, 1],
 			],
-			kern_after: 0.2,
+			kern_after: 0.6,
 		},
 		{
 			letter: "U",
@@ -417,6 +417,7 @@ function draw_logo() {
 		},
 	];
 	var rand = Math.random();
+	var rand2 = Math.random();
 	var lw_inc = 0;
 	for (var letter of letter_data) {
 		var {points, kern_after} = letter;
@@ -431,7 +432,7 @@ function draw_logo() {
 			logo_ctx.moveTo(a[0], a[1]);
 			logo_ctx.lineTo(b[0], b[1]);
 			lw_inc += Math.random();
-			logo_ctx.lineWidth = 0.1 + 0.08 * Math.sin(lw_inc / 5 + rand * 5) * Math.sin(lw_inc / 50 + rand*19);
+			logo_ctx.lineWidth = 0.04 + Math.max(0, 0.1 * Math.sin(lw_inc / 5 * rand2 + rand * 5) * Math.sin(lw_inc / 50 + rand*19));
 			logo_ctx.strokeStyle = "white";
 			logo_ctx.stroke();
 		}
@@ -782,7 +783,7 @@ operate on selection if there's a selection (and update bounds of selection)
 platform support
 	support bytebeat again [on windows93.net too]
 	khan academy, including "error buddy" detection
-	code fiddles like jsfiddle, codepen, jsbin
+	code fiddles like jsfiddle, codepen, jsbin, fiddle salad
 
 wrap values sometimes in a function, like i did for:
 	https://www.khanacademy.org/computer-programming/phantasmagoria/2540238893
@@ -794,10 +795,6 @@ a mode where mutations are applied only after the time when they were generated/
 	allowing for playback of the history of mutation
 	time > ${get_time_from_page()} ? mutation : original
 	(time as in iTime in shadertoy, t in bytebeat; could create a startTime variable to compare against in other environments (jsfiddle etc.))
-
-randomize MUTAGEN logo more,
-	at least with more particle locations (that sometimes become spaces), but
-	maybe render it more fully instead of using a premade font
 
 save code of all shadertoy tabs?
 
