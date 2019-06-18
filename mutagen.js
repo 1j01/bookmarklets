@@ -91,30 +91,56 @@ function render_doc_to_string(doc, edits_to_include) {
 }
 
 function get_code_from_page() {
-	//var textarea = document.querySelector("#code");
-	//var original_code = textarea.value;
-	var cm = document.querySelector('.CodeMirror').CodeMirror;
-	return cm.getValue();
+	var cm_el = document.querySelector('.CodeMirror');
+	if (cm_el) {
+		var cm = cm_el.CodeMirror;
+		return cm.getValue();
+	}
+	var textarea = document.querySelector("textarea#code, textarea"); // bytebeat, and potentially weird random things on the web
+	if (textarea) {	
+		return textarea.value;
+	}
+	alert("No code text editor found on the page");
+	return "";
 }
+var confirmed_erase_undo_history = false;
 function set_code_on_page(new_code) {
-	// TODO for bytebeat: would seem to need to be async
-	//textarea.focus();
-	//setTimeout(function(){
-		//textarea.select();
-		//document.execCommand("InsertText", false, new_code);
-	//});
-	var cm = document.querySelector('.CodeMirror').CodeMirror;
-	cm.setValue(new_code);
+	var cm_el = document.querySelector('.CodeMirror');
+	if (cm_el) {
+		var cm = cm_el.CodeMirror;
+		cm.setValue(new_code);
+		return;
+	}
+	var textarea = document.querySelector("textarea#code, textarea"); // bytebeat, and potentially weird random things on the web
+	if (textarea) {	
+		if (confirmed_erase_undo_history || confirm("This will erase undo/redo history for the textarea, continue?")) {
+			confirmed_erase_undo_history = true;
+			textarea.value = new_code;
+		}
+		return;
+	}
+	// TODO for bytebeat: would seem to need to be async (for undo history to be kept intact)
+	// textarea.focus();
+	// setTimeout(function(){
+	// 	textarea.select();
+	// 	document.execCommand("InsertText", false, new_code);
+	// });
 }
 
 function find_problem_in_output_on_page() {
-	// TODO: bytebeat
+	// shadertoy
 	var error_message_el = document.querySelector(".CodeMirror-linewidget .errorMessage");
 	if (error_message_el && getComputedStyle(error_message_el).visibility !== "hidden") {
 		return new Error(`compile failed: ${error_message_el.textContent}`);
 	}
+	// shadertoy
 	if (document.querySelector(".tab.errorYes")) {
 		return new Error("compile failed (in some tab)");
+	}
+	// bytebeat - it's not very semantic in the DOM!
+	var error_message_el = document.querySelector("#controls button[style^='color: rgb(255, 0, 0)']")
+	if (error_message_el) {
+		return new Error(`compile failed: ${error_message_el.textContent}`);
 	}
 	// TODO: maybe testing the canvas for whether it's blank (after rendering a frame) is be expensive enough
 	// that it should first do a pass just checking that it compiles, and check *at the end* if it's blank,
@@ -218,6 +244,9 @@ thumbnails_container.addEventListener("dblclick", (event)=> {
 });
 
 function record_thumbnail() {
+	if (!output_canvas) {
+		return;
+	}
 	var code = get_code_from_page();
 	if (thumbnails.some((el)=> el.dataset.code === code)) {
 		return;
@@ -263,12 +292,26 @@ function is_output_canvas_interesting() {
 }
 
 function is_compiling() {
-	// TODO: bytebeat
-	return document.querySelector("#compilationTime").textContent.match(/Compiling/i);
+	// shadertoy
+	var compile_status_el = document.querySelector("#compilationTime");
+	if (compile_status_el) {
+		return compile_status_el.textContent.match(/Compiling/i);
+	}
+	// bytebeat
+	if ((location.origin + location.pathname).match(/bytebeat/i)) {
+		return false; // bytebeat compiles synchronously
+	}
+
+	return false;
 }
 function compile_code_on_page() {
-	//compile(new_code); // bytebeat
-	document.querySelector("[title~='Compile']").click(); // shadertoy
+	
+	var compile_button = document.querySelector("[title~='Compile']"); // shadertoy
+	if (compile_button) {
+		compile_button.click(); 
+	} else if (window.compile) {
+		window.compile(get_code_from_page()); // bytebeat
+	}
 
 	return new Promise((resolve, reject)=> {
 		function wait_for_compile_end() {
@@ -537,16 +580,27 @@ function draw_logo() {
 	return logo;
 }
 
-var attribution_header_start = `// Based on `;
+var attribution_header_start = `// Based on`;
 var attribution_header_end = `code mutation tool by Isaiah Odhner)`;
 
 function get_attribution_header() {
 	// TODO: handle shaders being edited (don't say "Based on" I suppose? get name title from input)
-	var shader_title = document.querySelector("#shaderTitle").textContent;
-	var shader_author_name = document.querySelector("#shaderAuthorName").textContent;
-	var shader_author_date = document.querySelector("#shaderAuthorDate").textContent;
-	var shader_author_year = shader_author_date.replace(/-.*/, "");
+	var title_el = document.querySelector("#shaderTitle, title");
+	var author_name_el = document.querySelector("#shaderAuthorName");
+	var author_date_el = document.querySelector("#shaderAuthorDate");
+	var title = title_el && title_el.textContent;
+	var author_name = author_name_el && author_name_el.textContent;
+	var author_date = author_date_el && author_date_el.textContent;
+	var author_year = author_date && author_date.replace(/-.*/, "");
 
+	if (title && author_name && author_year) {
+		var based_on = `Based on "${title}" by ${author_name} - ${author_year}
+
+${location.href}`;
+	} else {
+		var based_on = `Based on:
+${location.href}`;
+	}
 // 	var logo = `
 // • ▌ ▄ ·. ▄• ▄▌▄▄▄▄▄ ▄▄▄·  ▄▄ • ▄▄▄ . ▐ ▄ 
 // ·██ ▐███▪█▪██▌•██  ▐█ ▀█ ▐█ ▀ ▪▀▄.▀·•█▌▐█
@@ -556,9 +610,7 @@ function get_attribution_header() {
 // `;
 // 	logo = logo.replace(/[·.•▪]/g, ()=> choose("·.•▪"));
 	var logo = draw_logo();
-	var header = `Based on "${shader_title}" by ${shader_author_name} - ${shader_author_year}
-
-${location.href}
+	var header = `${based_on}
 
 
 randomly mutated with...
@@ -711,10 +763,19 @@ async function mutate_code_on_page() {
 		new_code = add_or_replace_attribution_header(new_code);
 		var new_code_from_page = get_code_from_page();
 
-		console.assert(new_code === new_code_from_page, "got different code from page as should have been generated");
+		var _original_code = remove_attribution_header(original_code).trim()
+		var _new_code = remove_attribution_header(new_code).trim()
+		var _new_code_from_page = remove_attribution_header(original_code).trim();
 
-		if (remove_attribution_header(new_code).trim() === remove_attribution_header(original_code).trim()) {
-			console.log(`new_code is same as original_code, LAME (edit set try: ${edit_set_tries+1}/${max_edit_set_tries})`);
+		// for debug
+		window._original_code = _original_code;
+		window._new_code = _new_code;
+		window._new_code_from_page = _new_code_from_page;
+
+		console.assert(_new_code === _new_code_from_page, "got different code from page as should have been generated (compare _new_code vs _new_code_from_page)");
+
+		if (_new_code === _original_code) {
+			console.log(`_new_code is same as _original_code, LAME (edit set try: ${edit_set_tries+1}/${max_edit_set_tries})`);
 		} else {
 			console.assert(accepted_edits.length > 0);
 			console.log("mutation finished", {accepted_edits});
@@ -752,7 +813,7 @@ function add_buttons_to_page() {
 		setTimeout(()=> { mutateButton.disabled = false; }, 200);
 	};
 
-	var toolbar = document.querySelector("#toolBar, #toolbar, #tool-bar, #controls");
+	var toolbar = document.querySelector("#toolBar, #toolbar, #tool-bar, #controls") || document.body;
 	if (location.hostname.match(/ShaderToy/i)) {
 		// let's not bother trying to fit in a layout based around absolute positions
 		// just insert it below the toolbar
@@ -813,7 +874,7 @@ operate on selection if there's a selection (and update bounds of selection)
 	multiple selections
 
 platform support
-	support bytebeat again [on windows93.net too]
+	support bytebeat again on windows93.net (in iframe)
 	khan academy, including "error buddy" detection
 	code fiddles like jsfiddle, codepen, jsbin, fiddle salad
 
