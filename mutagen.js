@@ -332,9 +332,10 @@ ${location.href}
 randomly mutated with...
 ${logo}
 (MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)`;
-	header = header.replace(/(^|\n)/g, "$1// ").replace(/\/\/\s\n/g, "//\n");
-	console.assert(header.indexOf(attribution_header_start) === 0);
-	console.assert(header.indexOf(attribution_header_end) === header.length - attribution_header_end.length);
+	var line_comment_token = "//";
+	header = header.replace(/(^|\n)/g, `$1${line_comment_token} `).split("\n").map((line)=> line.trimEnd()).join("\n");
+	console.assert(header.indexOf(attribution_header_start) === 0, "attribution_header_start didn't match at start of header");
+	console.assert(header.indexOf(attribution_header_end) === header.length - attribution_header_end.length, "attribution_header_end didn't match at end of header");
 	return header;
 }
 function add_or_replace_attribution_header(code) {
