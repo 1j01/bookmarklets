@@ -134,7 +134,11 @@ test_canvas.height = 10;
 var thumbnail_canvas = document.createElement("canvas");
 var thumbnail_ctx = thumbnail_canvas.getContext("2d");
 thumbnail_canvas.width = 200;
-thumbnail_canvas.height = thumbnail_canvas.width * output_canvas.height / output_canvas.width;
+if (output_canvas) {
+	thumbnail_canvas.height = thumbnail_canvas.width * output_canvas.height / output_canvas.width;
+} else {
+	thumbnail_canvas.height = thumbnail_canvas.width;
+}
 
 var existing_style = document.querySelector("#mutagen-style");
 if (existing_style) {
@@ -461,12 +465,7 @@ function draw_logo() {
 
 	var chars = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"; // semantically pure, but not monospace
 	// var chars = "▁▘▝▛▖▛▞▛▗▚▜▜▅▙▟▇"; // actually monospace, but wider than a space
-	// var chars = " ▀▄▌▐█"; // good monospace, normal-space-sized characters
-	var ch_top = "▀";
-	var ch_bottom = "▄";
-	var ch_left = "▌";
-	var ch_right = "▐";
-	var ch_full = "█";
+	// var chars = " ▀▄▌▐█"; // good, monospace, normal space sized characters
 
 	var image_data = logo_ctx.getImageData(0, 0, logo_canvas.width, logo_canvas.height);
 	var at = (x, y)=>
@@ -476,43 +475,53 @@ function draw_logo() {
 	console.assert(logo_canvas.width % 2 === 0, "we're assuming an even number of pixels for accessing image data");
 	console.assert(logo_canvas.height % 2 === 0, "we're assuming an even number of pixels for accessing image data");
 
-	var logo = "";
+	var grid = [];
 	for (var y=0; y<logo_canvas.height; y+=2) {
+		var row = [];
 		for (var x=0; x<logo_canvas.width; x+=2) {
 			var upper_left = at(x, y);
 			var upper_right = at(x+1, y);
 			var lower_left = at(x, y+1);
 			var lower_right = at(x+1, y+1);
-			logo += chars[0 + upper_left + upper_right*2 + lower_left*4 + lower_right*8];
+			var char = chars[0 + upper_left + upper_right*2 + lower_left*4 + lower_right*8];
+			row.push(char);
 		}
-		logo += "\n";
+		grid.push(row);
 	}
+
+	// add some particles...
+	grid.forEach((row, row_index)=> {
+		row.forEach((char, char_index)=> {
+			if (char !== " ") {
+				if (Math.random() < 0.5) {
+					var particle_char = choose("·.•▪");
+					var x = char_index + choose([-2, -1, -1, 0, 1, 1, 2]);
+					var y = row_index + choose([-2, -1, -1, 0, 1, 1, 2]);
+					if (y >= 0 && x >= 0 && y < grid.length && x < grid[y].length) {
+						if (grid[y][x] === " ") {
+							grid[y][x] = particle_char;
+						}
+					}
+				}
+			}
+		});
+	});
+
+	var logo = grid.map((row)=> row.join("")).join("\n");
+
+	// substitute block element characters that aren't rendered as fixed width by CodeMirror
+	// with simpler shapes that are rendered the same width as a space
+	var ch_top = "▀";
+	var ch_bottom = "▄";
+	var ch_left = "▌";
+	var ch_right = "▐";
+	var ch_full = "█";
 	logo = logo
 		.replace(/▘/g, ()=> choose([ch_left, ch_top]))
 		.replace(/▝/g, ()=> choose([ch_right, ch_top]))
 		.replace(/▗/g, ()=> choose([ch_right, ch_bottom]))
 		.replace(/▖/g, ()=> choose([ch_left, ch_bottom]))
 		.replace(/[▛▜▟▙▚▞]/g, ch_full);
-
-	// add some particles...
-	// this is a silly way of doing this, but hey, it works!
-	var n_lines = logo.split("\n").length;
-	var line_length = logo.split("\n")[0].length + 1; // 1 for \n
-	logo.replace(/\S/g, (match, offset)=> {
-		if (Math.random() < 0.5) {
-			var x = offset % line_length;
-			var y = Math.floor(offset / line_length);
-			var particle_char = choose("·.•▪");
-			x += choose([-2, -1, -1, 0, 1, 1, 2]);
-			y += choose([-2, -1, -1, 0, 1, 1, 2]);
-			if (x >= 0 && y >= 0 && x < line_length && y < n_lines) {
-				var new_offset = (line_length * y) + x;
-				if (logo[new_offset] === " ") {
-					logo = logo.slice(0, new_offset) + particle_char + logo.slice(new_offset + 1);
-				}
-			}
-		}
-	});
 
 	return logo;
 }
@@ -544,6 +553,7 @@ ${location.href}
 randomly mutated with...
 
 ${logo}
+
 (MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)`;
 	var line_comment_token = "//";
 	header = header.replace(/(^|\n)/g, `$1${line_comment_token} `).split("\n").map((line)=> line.trimEnd()).join("\n");
