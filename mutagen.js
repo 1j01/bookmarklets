@@ -311,6 +311,7 @@ logo_canvas.height = 12;
 // for debug
 var existing_logo_canvas = document.getElementById("mutagen-logo-canvas-debug");
 if (existing_logo_canvas) { existing_logo_canvas.remove(); }
+/*
 logo_canvas.id = "mutagen-logo-canvas-debug";
 document.body.appendChild(logo_canvas);
 logo_canvas.style.position = "absolute";
@@ -321,6 +322,7 @@ logo_canvas.style.transformOrigin = "top left";
 logo_canvas.style.imageRendering = "crisp-edges";
 logo_canvas.style.imageRendering = "pixelated";
 logo_canvas.style.background = "rgba(0, 0, 0, 1)";
+*/
 
 function draw_logo() {
 	// logo_ctx.fillRect(0, 0, 5, 5);
@@ -471,6 +473,26 @@ function draw_logo() {
 		.replace(/▙/g, ()=> choose([ch_left, ch_bottom, ch_full]))
 		.replace(/▞/g, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]))
 		.replace(/▚/g, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]));
+
+	// add some particles...
+	// this is a silly way of doing this, but hey, it works!
+	var n_lines = logo.split("\n").length;
+	var line_length = logo.split("\n")[0].length + 1; // 1 for \n
+	logo.replace(/\S/g, (match, offset)=> {
+		if (Math.random() < 0.5) {
+			var x = offset % line_length;
+			var y = Math.floor(offset / line_length);
+			var particle_char = choose("·.•▪");
+			x += choose([-2, -1, -1, 0, 1, 1, 2]);
+			y += choose([-2, -1, -1, 0, 1, 1, 2]);
+			if (x >= 0 && y >= 0 && x < line_length && y < n_lines) {
+				var new_offset = (line_length * y) + x;
+				if (logo[new_offset] === " ") {
+					logo = logo.slice(0, new_offset) + particle_char + logo.slice(new_offset + 1);
+				}
+			}
+		}
+	});
 
 	return logo;
 }
