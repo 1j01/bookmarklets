@@ -379,15 +379,22 @@ function draw_logo() {
 		},
 		{
 			letter: "A",
-			points: [
-				[0, 1],
-					[0.25, 0.5 - a_roundedness * 0.8],
-						[0.5, 0],
-					[0.75, 0.5 - a_roundedness * 0.8],
-				[1, 1],
-
-				[0.9, 0.75 - a_roundedness * 0.2],
-				[0.2, 0.75 - a_roundedness * 0.2],
+			strokes: [
+				[
+					[0, 1],
+						[0 + (1/8 - a_roundedness * 0.2), 3/4],
+							[0 + (1/4 - a_roundedness * 0.25), 1/2],
+								[0 + (3/8 - a_roundedness * 0.3), 1/4 * (1-a_roundedness/2)],
+									[0.5, 0],
+								[1 - (3/8 - a_roundedness * 0.3), 1/4 * (1-a_roundedness/2)],
+							[1 - (1/4 - a_roundedness * 0.25), 1/2],
+						[1 - (1/8 - a_roundedness * 0.2), 3/4],
+					[1, 1],
+				],
+				[
+					[0.2-Math.random()*0.2, 0.75 - a_roundedness * 0.2],
+					[0.8+Math.random()*0.2, 0.75 - a_roundedness * 0.2],
+				]
 			],
 			kern_after: -0.15,
 		},
@@ -433,9 +440,10 @@ function draw_logo() {
 	var rand2 = Math.random();
 	var lw_inc = 0;
 	for (var letter of letter_data) {
-		var {points, width, kern_after} = letter;
+		var {points, strokes, width, kern_after} = letter;
 		width = width || 1;
 		kern_after = kern_after || 0;
+		strokes = strokes || [points];
 		var letter_width_scale = 1 + Math.random() * 0.4;
 		var letter_width = width * letter_width_scale;
 		logo_ctx.save();
@@ -443,20 +451,23 @@ function draw_logo() {
 		// TODO: increase letter spacing around rotated letters
 		var rotation = (Math.random() - 1/2) * 0.2;
 		logo_ctx.rotate(rotation);
-		for (var i=0; i<points.length-1; i++) {
-			var a = points[i];
-			var b = points[i+1];
-			a.x += Math.random() * 0.05;
-			a.y += Math.random() * 0.05;
-			b.x += Math.random() * 0.05;
-			b.y += Math.random() * 0.05;
-			logo_ctx.beginPath();
-			logo_ctx.moveTo(a[0], a[1]);
-			logo_ctx.lineTo(b[0], b[1]);
-			lw_inc += Math.random();
-			logo_ctx.lineWidth = 0.04 + Math.max(0, 0.1 * Math.sin(lw_inc / 5 * rand2 + rand * 5) * Math.sin(lw_inc / 50 + rand*19));
-			logo_ctx.strokeStyle = "white";
-			logo_ctx.stroke();
+		for (var stroke_i=0; stroke_i<strokes.length; stroke_i++) {
+			var points = strokes[stroke_i];
+			for (var i=0; i<points.length-1; i++) {
+				var a = points[i];
+				var b = points[i+1];
+				a.x += Math.random() * 0.05;
+				a.y += Math.random() * 0.05;
+				b.x += Math.random() * 0.05;
+				b.y += Math.random() * 0.05;
+				logo_ctx.beginPath();
+				logo_ctx.moveTo(a[0], a[1]);
+				logo_ctx.lineTo(b[0], b[1]);
+				lw_inc += Math.random();
+				logo_ctx.lineWidth = 0.04 + Math.max(0, 0.1 * Math.sin(lw_inc / 5 * rand2 + rand * 5) * Math.sin(lw_inc / 50 + rand*19));
+				logo_ctx.strokeStyle = "white";
+				logo_ctx.stroke();
+			}
 		}
 		logo_ctx.restore();
 		logo_ctx.translate(letter_width + letter_spacing + kern_after, 0);
