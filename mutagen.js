@@ -303,12 +303,81 @@ function generate_mutations(edits) {
 	// console.log(`${num_edits} possible edits in ${tries_to_reach_min_edits} tries`);
 }
 
+var logo_canvas = document.createElement("canvas");
+var logo_ctx = logo_canvas.getContext("2d");
+logo_canvas.width = 100;
+logo_canvas.height = 10;
+
+// for debug
+var existing_logo_canvas = document.getElementById("mutagen-logo-canvas-debug");
+if (existing_logo_canvas) { existing_logo_canvas.remove(); }
+logo_canvas.id = "mutagen-logo-canvas-debug";
+document.body.appendChild(logo_canvas);
+logo_canvas.style.position = "absolute";
+logo_canvas.style.left = "0";
+logo_canvas.style.top = "0";
+logo_canvas.style.transform = "scale(10)";
+logo_canvas.style.transformOrigin = "top left";
+logo_canvas.style.imageRendering = "crisp-edges";
+logo_canvas.style.imageRendering = "pixelated";
+
+function draw_logo() {
+	// logo_ctx.fillRect(0, 0, 5, 5);
+	logo_ctx.save();
+	logo_ctx.scale(10, 10);
+	logo_ctx.translate(0.5, 0.5);
+	logo_ctx.scale(0.7, 0.7);
+	logo_ctx.translate(-0.5, -0.5);
+	logo_ctx.lineWidth = 0.2;
+	logo_ctx.strokeStyle = "white";
+	logo_ctx.moveTo(0, 1);
+	logo_ctx.lineTo(0, 0);
+	logo_ctx.lineTo(0.5, 1);
+	logo_ctx.lineTo(1, 0);
+	logo_ctx.lineTo(1, 1);
+	logo_ctx.stroke();
+	logo_ctx.restore();
+	var logo = "";
+// 	for (var lower_right=0; lower_right<=1; lower_right++) {
+// 	for (var lower_left=0; lower_left<=1; lower_left++) {
+// 	for (var upper_right=0; upper_right<=1; upper_right++) {
+// 	for (var upper_left=0; upper_left<=1; upper_left++) {
+// 		console.log(`
+// ${upper_left ? "#" : "-"}${upper_right ? "#" : "-"}
+// ${lower_left ? "#" : "-"}${lower_right ? "#" : "-"}
+// `);
+// 	}}}}
+	var chars = " |▘|▝|▀|▖|▌|▞|▛|▗|▚|▐|▜|▄|▙|▟|█".split("|");
+	var image_data = logo_ctx.getImageData(0, 0, logo_canvas.width, logo_canvas.height);
+	var at = (x, y)=>
+		(image_data.data[
+			((y * image_data.width) + x) * 4 + 3
+		] / 256) > 0.1;
+	console.assert(logo_canvas.width % 2 === 0, "we're assuming an even number of pixels for accessing image data");
+	console.assert(logo_canvas.height % 2 === 0, "we're assuming an even number of pixels for accessing image data");
+	for (var y=0; y<logo_canvas.height; y+=2) {
+		for (var x=0; x<logo_canvas.width; x+=2) {
+			var upper_left = at(x, y);
+			var upper_right = at(x+1, y);
+			var lower_left = at(x, y+1);
+			var lower_right = at(x+1, y+1);
+			logo += chars[0 + upper_left + upper_right*2 + lower_left*4 + lower_right*8];
+		}
+		logo += "\n";
+	}
+	// for (var y=0; y<image_data.height; y+=1) {
+	// 	for (var x=0; x<image_data.width; x+=1) {
+	// 		logo += at(x, y) ? "#" : " ";
+	// 	}
+	// 	logo += "\n";
+	// }
+	return logo;
+}
+
+var choose = (array)=> array[~~(array.length * Math.random())];
+
 var attribution_header_start = `// Based on `;
 var attribution_header_end = `code mutation tool by Isaiah Odhner)`;
-
-function choose(array) {
-	return array[~~(array.length * Math.random())];
-}
 
 function get_attribution_header() {
 	// TODO: handle shaders being edited (don't say "Based on" I suppose? get name title from input)
@@ -316,20 +385,23 @@ function get_attribution_header() {
 	var shader_author_name = document.querySelector("#shaderAuthorName").textContent;
 	var shader_author_date = document.querySelector("#shaderAuthorDate").textContent;
 	var shader_author_year = shader_author_date.replace(/-.*/, "");
-	var logo = `
-• ▌ ▄ ·. ▄• ▄▌▄▄▄▄▄ ▄▄▄·  ▄▄ • ▄▄▄ . ▐ ▄ 
-·██ ▐███▪█▪██▌•██  ▐█ ▀█ ▐█ ▀ ▪▀▄.▀·•█▌▐█
-▐█ ▌▐▌▐█·█▌▐█▌ ▐█.▪▄█▀▀█ ▄█ ▀█▄▐▀▀▪▄▐█▐▐▌
-██ ██▌▐█▌▐█▄█▌ ▐█▌·▐█ ▪▐▌▐█▄▪▐█▐█▄▄▌██▐█▌
-▀▀  █▪▀▀▀ ▀▀▀  ▀▀▀  ▀  ▀ ·▀▀▀▀  ▀▀▀ ▀▀ █▪
-`;
-	logo = logo.replace(/[·.•▪]/g, ()=> choose("·.•▪"));
+
+// 	var logo = `
+// • ▌ ▄ ·. ▄• ▄▌▄▄▄▄▄ ▄▄▄·  ▄▄ • ▄▄▄ . ▐ ▄ 
+// ·██ ▐███▪█▪██▌•██  ▐█ ▀█ ▐█ ▀ ▪▀▄.▀·•█▌▐█
+// ▐█ ▌▐▌▐█·█▌▐█▌ ▐█.▪▄█▀▀█ ▄█ ▀█▄▐▀▀▪▄▐█▐▐▌
+// ██ ██▌▐█▌▐█▄█▌ ▐█▌·▐█ ▪▐▌▐█▄▪▐█▐█▄▄▌██▐█▌
+// ▀▀  █▪▀▀▀ ▀▀▀  ▀▀▀  ▀  ▀ ·▀▀▀▀  ▀▀▀ ▀▀ █▪
+// `;
+// 	logo = logo.replace(/[·.•▪]/g, ()=> choose("·.•▪"));
+	var logo = draw_logo();
 	var header = `Based on "${shader_title}" by ${shader_author_name} - ${shader_author_year}
 
 ${location.href}
 
 
 randomly mutated with...
+
 ${logo}
 (MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)`;
 	var line_comment_token = "//";
@@ -539,6 +611,8 @@ mutate_code_on_page();
 
 /*
 FIXME: canvas snapshotted and/or tested for blankness before the shader is loaded and rendered
+
+FIXME: Assertion failed: got different code from page as should have been generated
 
 TODO: improve handling of shadertoy tabs:
 	protect against switching tabs while mutations are being made
