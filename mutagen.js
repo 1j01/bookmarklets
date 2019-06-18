@@ -338,10 +338,11 @@ function draw_logo() {
 			points: [
 				[0, 1],
 				[0, 0],
-				[0.5, 1],
-				[1, 0],
-				[1, 1],
+				[0.5*1.2, 1],
+				[1*1.2, 0],
+				[1*1.2, 1],
 			],
+			kern_after: 0.2,
 		},
 		{
 			letter: "U",
@@ -380,7 +381,7 @@ function draw_logo() {
 		{
 			letter: "G",
 			points: [
-				[0.9, 0.2],
+				[0.9, 0.01],
 				[0.5, 0],
 				[0.4, 0.1],
 				[0.2, 0.4],
@@ -416,15 +417,21 @@ function draw_logo() {
 		},
 	];
 	var rand = Math.random();
+	var lw_inc = 0;
 	for (var letter of letter_data) {
 		var {points, kern_after} = letter;
 		for (var i=0; i<points.length-1; i++) {
 			var a = points[i];
 			var b = points[i+1];
+			a.x += Math.random() * 0.05;
+			a.y += Math.random() * 0.05;
+			b.x += Math.random() * 0.05;
+			b.y += Math.random() * 0.05;
 			logo_ctx.beginPath();
 			logo_ctx.moveTo(a[0], a[1]);
 			logo_ctx.lineTo(b[0], b[1]);
-			logo_ctx.lineWidth = 0.15 + 0.1 * Math.sin(i / 5 + rand);
+			lw_inc += Math.random();
+			logo_ctx.lineWidth = 0.1 + 0.08 * Math.sin(lw_inc / 5 + rand * 5) * Math.sin(lw_inc / 50 + rand*19);
 			logo_ctx.strokeStyle = "white";
 			logo_ctx.stroke();
 		}
