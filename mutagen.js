@@ -161,7 +161,7 @@ var css = `
 	align-content: flex-start;
 	margin: 0 auto;
 	padding-top: 15px;
-	padding-bottom: 15px; /* doesn't seem to work */
+	padding-bottom: 15px; /* doesn't seem to work - could use margin instead tho if there's an outer container */
 }
 #mutagen-thumbnails-container:hover,
 #mutagen-thumbnails-container:focus-within {
@@ -530,21 +530,43 @@ add_buttons_to_page();
 mutate_code_on_page();
 
 /*
-TODO: protect against switching tabs while mutations are being made
-also detect errors only in selected tab
+FIXME: canvas snapshotted and/or tested for blankness before the shader is loaded and rendered
+
+TODO: improve handling of shadertoy tabs:
+	protect against switching tabs while mutations are being made
+	detect errors only in selected tab
+	don't bother looking at the canvas if modifying the Sound tab
 
 Some other things that would be good:
 
-present a grid of thumbnails of a bunch of variations to pick from.......
+randomize MUTAGEN logo
+	at least with the particles around it, but
+	maybe even render it more fully instead of using a premade font
+
+GUI:
+	maybe put the mutate + abort buttons in a container with the specimen palette
+	add some text explaining the double click if that's gonna be a thing
+	a draggable, resizable window to put the GUI in
+	background process cursor while mutating?
+
+thumbnail/history/specimen grid/palette:
+	maybe create stacks when a single mutation session generates interim results
+	option to generate a bunch at a time, with rows or stacks
 	rows could be from progressively accepting subsets of one changeset,
 	and then there'd be a few rows, with totally different changesets
-	or i think just a nonlinear (because you can jump back) ever expanding list (except for memory concerns) would be good
-	possibly with animation (a few frames)? (on hover?)
-	possibly with collapsing stacks of similar looking frames? (would need a similarity metric)
+	delete thumbnails (with undo)
+	animation (a few frames)? (on hover or always?)
+	collapse stacks of similar looking frames? (would need a similarity metric)
+	allow sort/arrange by:
+		time created (current order)
+		ancestry (need to store what something was generated from) (and then just flatten the tree)
+		or t-SNE (see below)
 
 if you're going to be creating a bunch of programs with similar structure,
 	breeding could be an option
 	(not to mention possibilities of merging unrelated programs by applying random functions between them etc., or reconciling semi-related programs by correlating them)
+	so could graphically arranging the specimens with t-SNE
+		https://cs.stanford.edu/people/karpathy/tsnejs/
 
 operate on selection if there's a selection (and update bounds of selection)
 	multiple selections
@@ -557,8 +579,16 @@ platform support
 wrap values sometimes in a function, like i did for:
 	https://www.khanacademy.org/computer-programming/phantasmagoria/2540238893
 	https://www.khanacademy.org/computer-programming/phantasmagoria-plus/6066580222902272
+	oooh, aside from just introducing varying and interesting animation,
+		it could use *sound* specifically as an input, so it makes things into visualizers :D
 
-a mode where mutations are applied only after the time when they were applied
+a mode where mutations are applied only after the time when they were generated/applied
 	allowing for playback of the history of mutation
 	time > ${get_time_from_page()} ? mutation : original
+	(time as in iTime in shadertoy, t in bytebeat; could create a startTime variable to compare against in other environments (jsfiddle etc.))
+
+save code of all shadertoy tabs?
+
+maybe export an image with all the thumbnails, with all the codes embedded, that you can load back in and pick from
+
 */
