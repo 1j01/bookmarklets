@@ -338,8 +338,16 @@ function draw_logo() {
 	logo_ctx.stroke();
 	logo_ctx.restore();
 	var logo = "";
-	// var chars = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"; // pure
-	var chars = "▁▘▝▛▖▛▞▛▗▚▜▜▅▙▟▇"; // actually fixed width
+	var chars = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"; // semantically pure
+	// var chars = "▁▘▝▛▖▛▞▛▗▚▜▜▅▙▟▇"; // actually fixed width
+	// var chars = " ▀▄▌▐█";
+
+	var ch_top = "▀";
+	var ch_bottom = "▄";
+	var ch_left = "▌";
+	var ch_right = "▐";
+	var ch_full = "█";
+
 	var image_data = logo_ctx.getImageData(0, 0, logo_canvas.width, logo_canvas.height);
 	var at = (x, y)=>
 		(image_data.data[
@@ -363,7 +371,19 @@ function draw_logo() {
 	// 	}
 	// 	logo += "\n";
 	// }
-	logo = logo.replace(/▁/g, ()=> choose("▁▁▁▁▁▁▂▁▂▁▂▁▂▔▔▔▔▕▕▘▘▘▘▝▝▗▗▞▚"));
+	logo = logo
+		.replace(/▘/, ()=> choose([ch_left, ch_top]))
+		.replace(/▝/, ()=> choose([ch_right, ch_top]))
+		.replace(/▗/, ()=> choose([ch_right, ch_bottom]))
+		.replace(/▖/, ()=> choose([ch_left, ch_bottom]))
+		.replace(/▖/, ()=> choose([ch_left, ch_bottom]))
+		.replace(/▛/, ()=> choose([ch_left, ch_top, ch_full]))
+		.replace(/▜/, ()=> choose([ch_right, ch_top, ch_full]))
+		.replace(/▟/, ()=> choose([ch_right, ch_bottom, ch_full]))
+		.replace(/▙/, ()=> choose([ch_left, ch_bottom, ch_full]))
+		.replace(/▞/, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]))
+		.replace(/▚/, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]));
+
 	return logo;
 }
 
