@@ -306,26 +306,33 @@ function generate_mutations(edits) {
 var attribution_header_start = `// Based on `;
 var attribution_header_end = `code mutation tool by Isaiah Odhner)`;
 
+function choose(array) {
+	return array[~~(array.length * Math.random())];
+}
+
 function get_attribution_header() {
 	// TODO: handle shaders being edited (don't say "Based on" I suppose? get name title from input)
 	var shader_title = document.querySelector("#shaderTitle").textContent;
 	var shader_author_name = document.querySelector("#shaderAuthorName").textContent;
 	var shader_author_date = document.querySelector("#shaderAuthorDate").textContent;
 	var shader_author_year = shader_author_date.replace(/-.*/, "");
-	var header = `// Based on "${shader_title}" by ${shader_author_name} - ${shader_author_year}
-//
-// ${location.href}
-//
-//
-// randomly mutated with...
-// 
-// • ▌ ▄ ·. ▄• ▄▌▄▄▄▄▄ ▄▄▄·  ▄▄ • ▄▄▄ . ▐ ▄ 
-// ·██ ▐███▪█▪██▌•██  ▐█ ▀█ ▐█ ▀ ▪▀▄.▀·•█▌▐█
-// ▐█ ▌▐▌▐█·█▌▐█▌ ▐█.▪▄█▀▀█ ▄█ ▀█▄▐▀▀▪▄▐█▐▐▌
-// ██ ██▌▐█▌▐█▄█▌ ▐█▌·▐█ ▪▐▌▐█▄▪▐█▐█▄▄▌██▐█▌
-// ▀▀  █▪▀▀▀ ▀▀▀  ▀▀▀  ▀  ▀ ·▀▀▀▀  ▀▀▀ ▀▀ █▪
-// 
-// (MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)`;
+	var logo = `
+• ▌ ▄ ·. ▄• ▄▌▄▄▄▄▄ ▄▄▄·  ▄▄ • ▄▄▄ . ▐ ▄ 
+·██ ▐███▪█▪██▌•██  ▐█ ▀█ ▐█ ▀ ▪▀▄.▀·•█▌▐█
+▐█ ▌▐▌▐█·█▌▐█▌ ▐█.▪▄█▀▀█ ▄█ ▀█▄▐▀▀▪▄▐█▐▐▌
+██ ██▌▐█▌▐█▄█▌ ▐█▌·▐█ ▪▐▌▐█▄▪▐█▐█▄▄▌██▐█▌
+▀▀  █▪▀▀▀ ▀▀▀  ▀▀▀  ▀  ▀ ·▀▀▀▀  ▀▀▀ ▀▀ █▪
+`;
+	logo = logo.replace(/[·.•▪]/g, ()=> choose("·.•▪"));
+	var header = `Based on "${shader_title}" by ${shader_author_name} - ${shader_author_year}
+
+${location.href}
+
+
+randomly mutated with...
+${logo}
+(MUTAGEN, pre-alpha code mutation tool by Isaiah Odhner)`;
+	header = header.replace(/(^|\n)/g, "$1// ").replace(/\/\/\s\n/g, "//\n");
 	console.assert(header.indexOf(attribution_header_start) === 0);
 	console.assert(header.indexOf(attribution_header_end) === header.length - attribution_header_end.length);
 	return header;
@@ -539,10 +546,6 @@ TODO: improve handling of shadertoy tabs:
 
 Some other things that would be good:
 
-randomize MUTAGEN logo
-	at least with the particles around it, but
-	maybe even render it more fully instead of using a premade font
-
 GUI:
 	maybe put the mutate + abort buttons in a container with the specimen palette
 	add some text explaining the double click if that's gonna be a thing
@@ -586,6 +589,10 @@ a mode where mutations are applied only after the time when they were generated/
 	allowing for playback of the history of mutation
 	time > ${get_time_from_page()} ? mutation : original
 	(time as in iTime in shadertoy, t in bytebeat; could create a startTime variable to compare against in other environments (jsfiddle etc.))
+
+randomize MUTAGEN logo more,
+	at least with more particle locations (that sometimes become spaces), but
+	maybe render it more fully instead of using a premade font
 
 save code of all shadertoy tabs?
 
