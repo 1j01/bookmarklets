@@ -487,6 +487,9 @@ function draw_logo() {
 		}
 		logo += "\n";
 	}
+	// var basically_anything = [ch_left, ch_right, ch_top, ch_bottom, ch_full, ch_full, "■", "■", "■", "■"];
+	// var diagonal_substitutions = [ch_full, ch_full, "■", "■", "■", "■"];
+	// var diagonal_substitutions = [ch_full];
 	logo = logo
 		.replace(/▘/g, ()=> choose([ch_left, ch_top]))
 		.replace(/▝/g, ()=> choose([ch_right, ch_top]))
@@ -497,8 +500,9 @@ function draw_logo() {
 		.replace(/▜/g, ()=> choose([ch_right, ch_top, ch_full]))
 		.replace(/▟/g, ()=> choose([ch_right, ch_bottom, ch_full]))
 		.replace(/▙/g, ()=> choose([ch_left, ch_bottom, ch_full]))
-		.replace(/▞/g, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]))
-		.replace(/▚/g, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]));
+		// .replace(/▞/g, ()=> choose(diagonal_substitutions))
+		// .replace(/▚/g, ()=> choose(diagonal_substitutions));
+		.replace(/[▚▞]/g, ch_full);
 
 	// add some particles...
 	// this is a silly way of doing this, but hey, it works!
