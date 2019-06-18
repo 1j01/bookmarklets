@@ -231,7 +231,6 @@ function record_thumbnail() {
 	thumbnail_img.setAttribute("role", "button");
 	thumbnails_container.appendChild(thumbnail_img);
 }
-record_thumbnail();
 
 function is_output_canvas_interesting() {
 	test_ctx.clearRect(0, 0, test_canvas.width, test_canvas.height);
@@ -303,6 +302,8 @@ function generate_mutations(edits) {
 	// console.log(`${num_edits} possible edits in ${tries_to_reach_min_edits} tries`);
 }
 
+var choose = (array)=> array[~~(array.length * Math.random())];
+
 var logo_canvas = document.createElement("canvas");
 var logo_ctx = logo_canvas.getContext("2d");
 logo_canvas.width = 100;
@@ -311,38 +312,42 @@ logo_canvas.height = 10;
 // for debug
 var existing_logo_canvas = document.getElementById("mutagen-logo-canvas-debug");
 if (existing_logo_canvas) { existing_logo_canvas.remove(); }
-/*
-logo_canvas.id = "mutagen-logo-canvas-debug";
-document.body.appendChild(logo_canvas);
-logo_canvas.style.position = "absolute";
-logo_canvas.style.left = "0";
-logo_canvas.style.top = "0";
-logo_canvas.style.transform = "scale(10)";
-logo_canvas.style.transformOrigin = "top left";
-logo_canvas.style.imageRendering = "crisp-edges";
-logo_canvas.style.imageRendering = "pixelated";
-logo_canvas.style.background = "rgba(0, 0, 0, 1)";
-*/
+if (window.mutagen_debug_logo) {
+	logo_canvas.id = "mutagen-logo-canvas-debug";
+	document.body.appendChild(logo_canvas);
+	logo_canvas.style.position = "absolute";
+	logo_canvas.style.left = "0";
+	logo_canvas.style.top = "0";
+	logo_canvas.style.transform = "scale(10)";
+	logo_canvas.style.transformOrigin = "top left";
+	logo_canvas.style.imageRendering = "crisp-edges";
+	logo_canvas.style.imageRendering = "pixelated";
+	logo_canvas.style.background = "rgba(0, 0, 0, 1)";
+}
 
 function draw_logo() {
+	logo_ctx.clearRect(0, 0, logo_canvas.width, logo_canvas.height);
 	// logo_ctx.fillRect(0, 0, 5, 5);
 	logo_ctx.save();
 	logo_ctx.scale(logo_canvas.height, logo_canvas.height);
 	logo_ctx.translate(0.5, 0.5);
 	logo_ctx.scale(0.7, 0.7);
 	logo_ctx.translate(-0.5, -0.5);
-	var letter_spacing = 1.5;
+	var letter_spacing = 0.5;
+	var m_slantedness = Math.random() * 0.8;
+	var m_width = 1.4 + m_slantedness * 0.8;
+	var a_roundedness = 1 - Math.random() * 0.6;
 	var letter_data = [
 		{
 			letter: "M",
 			points: [
 				[0, 1],
-				[0, 0],
-				[0.5*1.6, 1],
-				[1*1.6, 0],
-				[1*1.6, 1],
+				[0.25 * m_slantedness * m_width, 0],
+				[0.5 * m_width, 1 - Math.random() * 0.25],
+				[(1 - 0.25 * m_slantedness) * m_width, 0],
+				[1 * m_width, 1],
 			],
-			kern_after: 0.6,
+			kern_after: m_width - 1 - m_slantedness * 0.2,
 		},
 		{
 			letter: "U",
@@ -371,10 +376,13 @@ function draw_logo() {
 			letter: "A",
 			points: [
 				[0, 1],
-				[0.5, 0],
+					[0.25, 0.5 - a_roundedness * 0.8],
+						[0.5, 0],
+					[0.75, 0.5 - a_roundedness * 0.8],
 				[1, 1],
-				[0.9, 0.75],
-				[0.2, 0.75],
+
+				[0.9, 0.75 - a_roundedness * 0.2],
+				[0.2, 0.75 - a_roundedness * 0.2],
 			],
 			kern_after: -0.15,
 		},
@@ -421,6 +429,14 @@ function draw_logo() {
 	var lw_inc = 0;
 	for (var letter of letter_data) {
 		var {points, kern_after} = letter;
+		// TODO: separate out letter width concept from kerning - negative kerns shouldn't be scaled like this
+		var letter_width_scale = 1 + Math.random() * 0.4;
+		var letter_width = (1 + (kern_after || 0)) * letter_width_scale;
+		logo_ctx.save();
+		logo_ctx.scale(letter_width_scale, 1);
+		// TODO: increase letter spacing around rotated letters
+		var rotation = (Math.random() - 1/2) * 0.2;
+		logo_ctx.rotate(rotation);
 		for (var i=0; i<points.length-1; i++) {
 			var a = points[i];
 			var b = points[i+1];
@@ -436,8 +452,8 @@ function draw_logo() {
 			logo_ctx.strokeStyle = "white";
 			logo_ctx.stroke();
 		}
-		logo_ctx.translate(letter_spacing, 0);
-		logo_ctx.translate(kern_after || 0, 0);
+		logo_ctx.restore();
+		logo_ctx.translate(letter_width + letter_spacing, 0);
 	}
 	logo_ctx.restore();
 
@@ -504,8 +520,6 @@ function draw_logo() {
 
 	return logo;
 }
-
-var choose = (array)=> array[~~(array.length * Math.random())];
 
 var attribution_header_start = `// Based on `;
 var attribution_header_end = `code mutation tool by Isaiah Odhner)`;
@@ -737,6 +751,7 @@ try {
 	window.mutagen_stop();
 } catch(e) {}
 
+record_thumbnail();
 add_buttons_to_page();
 mutate_code_on_page();
 
