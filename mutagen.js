@@ -306,7 +306,7 @@ function generate_mutations(edits) {
 var logo_canvas = document.createElement("canvas");
 var logo_ctx = logo_canvas.getContext("2d");
 logo_canvas.width = 100;
-logo_canvas.height = 10;
+logo_canvas.height = 12;
 
 // for debug
 var existing_logo_canvas = document.getElementById("mutagen-logo-canvas-debug");
@@ -320,28 +320,95 @@ logo_canvas.style.transform = "scale(10)";
 logo_canvas.style.transformOrigin = "top left";
 logo_canvas.style.imageRendering = "crisp-edges";
 logo_canvas.style.imageRendering = "pixelated";
+logo_canvas.style.background = "rgba(0, 0, 0, 1)";
 
 function draw_logo() {
 	// logo_ctx.fillRect(0, 0, 5, 5);
 	logo_ctx.save();
-	logo_ctx.scale(10, 10);
+	logo_ctx.scale(logo_canvas.height, logo_canvas.height);
 	logo_ctx.translate(0.5, 0.5);
 	logo_ctx.scale(0.7, 0.7);
 	logo_ctx.translate(-0.5, -0.5);
-	logo_ctx.lineWidth = 0.2;
-	logo_ctx.strokeStyle = "white";
-	logo_ctx.moveTo(0, 1);
-	logo_ctx.lineTo(0, 0);
-	logo_ctx.lineTo(0.5, 1);
-	logo_ctx.lineTo(1, 0);
-	logo_ctx.lineTo(1, 1);
-	logo_ctx.stroke();
+	var letter_spacing = 1.5;
+	var letter_data = [
+		[ // M
+			[0, 1],
+			[0, 0],
+			[0.5, 1],
+			[1, 0],
+			[1, 1],
+		],
+		[ // U
+			[0, 0],
+			[0, 0.5],
+			[0.2, 0.7],
+			[0.5, 1],
+			[0.8, 0.7],
+			[1, 0.5],
+			[1, 0],
+		],
+		[ // T
+			[0, 0],
+			[1, 0],
+			[0.5, 0],
+			[0.5, 1],
+		],
+		[ // A
+			[0, 1],
+			[0.5, 0],
+			[1, 1],
+			[0.9, 0.7],
+			[0.2, 0.7],
+		],
+		[ // G
+			[0.8, 0.3],
+			[0.5, 0],
+			[0.4, 0.1],
+			[0.2, 0.4],
+			[0, 0.5],
+			[0.2, 0.7],
+			[0.5, 1],
+			[0.7, 0.7],
+			[0.7, 0.7],
+			[1, 0.6],
+			[1, 0.5],
+			[0.5, 0.5],
+		],
+		[ // E
+			[1, 0],
+			[0, 0],
+			[0, 0.5],
+			[0.7, 0.5],
+			[0, 0.5],
+			[0, 1],
+			[1, 1],
+		],
+		[ // N
+			[0, 1],
+			[0, 0],
+			[1, 1],
+			[1, 0],
+		],
+	];
+	var rand = Math.random();
+	for (var points of letter_data) {
+		for (var i=0; i<points.length-1; i++) {
+			var a = points[i];
+			var b = points[i+1];
+			logo_ctx.beginPath();
+			logo_ctx.moveTo(a[0], a[1]);
+			logo_ctx.lineTo(b[0], b[1]);
+			logo_ctx.lineWidth = 0.15 + 0.1 * Math.sin(i / 5 + rand);
+			logo_ctx.strokeStyle = "white";
+			logo_ctx.stroke();
+		}
+		logo_ctx.translate(letter_spacing, 0);
+	}
 	logo_ctx.restore();
-	var logo = "";
-	var chars = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"; // semantically pure
-	// var chars = "▁▘▝▛▖▛▞▛▗▚▜▜▅▙▟▇"; // actually fixed width
-	// var chars = " ▀▄▌▐█";
 
+	var chars = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"; // semantically pure, but not monospace
+	// var chars = "▁▘▝▛▖▛▞▛▗▚▜▜▅▙▟▇"; // actually monospace, but wider than a space
+	// var chars = " ▀▄▌▐█"; // good monospace, normal-space-sized characters
 	var ch_top = "▀";
 	var ch_bottom = "▄";
 	var ch_left = "▌";
@@ -355,6 +422,8 @@ function draw_logo() {
 		] / 256) > 0.1;
 	console.assert(logo_canvas.width % 2 === 0, "we're assuming an even number of pixels for accessing image data");
 	console.assert(logo_canvas.height % 2 === 0, "we're assuming an even number of pixels for accessing image data");
+
+	var logo = "";
 	for (var y=0; y<logo_canvas.height; y+=2) {
 		for (var x=0; x<logo_canvas.width; x+=2) {
 			var upper_left = at(x, y);
@@ -365,24 +434,18 @@ function draw_logo() {
 		}
 		logo += "\n";
 	}
-	// for (var y=0; y<image_data.height; y+=1) {
-	// 	for (var x=0; x<image_data.width; x+=1) {
-	// 		logo += at(x, y) ? "#" : " ";
-	// 	}
-	// 	logo += "\n";
-	// }
 	logo = logo
-		.replace(/▘/, ()=> choose([ch_left, ch_top]))
-		.replace(/▝/, ()=> choose([ch_right, ch_top]))
-		.replace(/▗/, ()=> choose([ch_right, ch_bottom]))
-		.replace(/▖/, ()=> choose([ch_left, ch_bottom]))
-		.replace(/▖/, ()=> choose([ch_left, ch_bottom]))
-		.replace(/▛/, ()=> choose([ch_left, ch_top, ch_full]))
-		.replace(/▜/, ()=> choose([ch_right, ch_top, ch_full]))
-		.replace(/▟/, ()=> choose([ch_right, ch_bottom, ch_full]))
-		.replace(/▙/, ()=> choose([ch_left, ch_bottom, ch_full]))
-		.replace(/▞/, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]))
-		.replace(/▚/, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]));
+		.replace(/▘/g, ()=> choose([ch_left, ch_top]))
+		.replace(/▝/g, ()=> choose([ch_right, ch_top]))
+		.replace(/▗/g, ()=> choose([ch_right, ch_bottom]))
+		.replace(/▖/g, ()=> choose([ch_left, ch_bottom]))
+		.replace(/▖/g, ()=> choose([ch_left, ch_bottom]))
+		.replace(/▛/g, ()=> choose([ch_left, ch_top, ch_full]))
+		.replace(/▜/g, ()=> choose([ch_right, ch_top, ch_full]))
+		.replace(/▟/g, ()=> choose([ch_right, ch_bottom, ch_full]))
+		.replace(/▙/g, ()=> choose([ch_left, ch_bottom, ch_full]))
+		.replace(/▞/g, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]))
+		.replace(/▚/g, ()=> choose([ch_left, ch_right, ch_top, ch_bottom, ch_full]));
 
 	return logo;
 }
