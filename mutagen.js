@@ -49,6 +49,22 @@ function find_edit_points_skipping_line_comments(code) {
 
 	return {doc, edits};
 }
+function document_structures_are_equivalent(doc_a, doc_b) {
+	// TODO: equivalize docs like "a" "b" vs "ab" by merging adjacent string parts?
+	if (doc_a.length !== doc_b.length) {
+		return false;
+	}
+	for (var i=0; i<doc_a.length; i++) {
+		var part_a = doc_a[i];
+		var part_b = doc_b[i];
+		if (typeof part === "string") {
+			if (part_a !== part_b) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
 
 function mutate_number_literal(num_str, mutation_chance) {
 	var n = parseFloat(num_str);
@@ -200,6 +216,16 @@ var css = `
 .mutagen-thumbnail {
 	cursor: pointer;
 	vertical-align: top;
+	border: 2px dashed transparent;
+}
+.mutagen-thumbnail.over {
+	border: 2px dashed #fff;
+}
+.mutagen-thumbnail.over:not(.dragging) {
+	box-shadow: 0 0 5px yellow, 0 0 15px lime;
+}
+.mutagen-thumbnail.dragging {
+	opacity: 0.4;
 }
 `;
 var style = document.createElement("style");
@@ -243,6 +269,8 @@ thumbnails_container.addEventListener("dblclick", (event)=> {
 	mutate_code_on_page();
 });
 
+var dragging_el = null;
+
 function record_thumbnail() {
 	if (!output_canvas) {
 		return;
@@ -263,6 +291,45 @@ function record_thumbnail() {
 	thumbnail_img.tabIndex = 0;
 	thumbnail_img.setAttribute("role", "button");
 	thumbnails_container.appendChild(thumbnail_img);
+	thumbnail_img.setAttribute("draggable", "draggable"); // probably not necessary since it happens to be an img
+	
+	thumbnail_img.addEventListener("dragstart", (event)=> {
+		event.dataTransfer.dropEffect = "copy";
+		event.dataTransfer.setData('text/plain', thumbnail_img.dataset.code);
+		thumbnail_img.classList.add("dragging");
+		dragging_el = thumbnail_img;
+	});
+	thumbnail_img.addEventListener("dragover", (event)=> {
+		event.preventDefault();
+		return false;
+	});
+	thumbnail_img.addEventListener("dragenter", (event)=> {
+		thumbnail_img.classList.add("over");
+	});
+	thumbnail_img.addEventListener("dragleave", (event)=> {
+		thumbnail_img.classList.remove("over");
+	});
+	thumbnail_img.addEventListener("drop", (event)=> {
+		event.stopPropagation();
+		if (dragging_el !== thumbnail_img) {
+			var dragged_code = event.dataTransfer.getData("text/plain");
+			var dropped_onto_code = code;
+			var dragged_doc = find_edit_points(dragged_code);
+			var dropped_onto_doc = find_edit_points(dropped_onto_code);
+			console.log(document_structures_are_equivalent(dragged_doc, dropped_onto_doc));
+			// breed(dragged_code, dropped_onto_code, 0.5);
+			// breed([dragged_code, dropped_onto_code], [0.5, 0.5]);
+		}
+		return false;
+	});
+	thumbnail_img.addEventListener("dragend", (event)=> {
+		var thumbnails = Array.from(document.querySelectorAll(".mutagen-thumbnail"));
+		thumbnails.forEach((thumbnail)=> {
+			thumbnail.classList.remove("over");
+			thumbnail.classList.remove("dragging");
+		});
+		dragging_el = null; // (drop comes before dragend)
+	});
 }
 
 function is_output_canvas_interesting() {
@@ -865,7 +932,7 @@ thumbnail/history/specimen grid/palette:
 		or t-SNE (see below)
 
 if you're going to be creating a bunch of programs with similar structure,
-	breeding could be an option
+	breeding could be an option...
 	(not to mention possibilities of merging unrelated programs by applying random functions between them etc., or reconciling semi-related programs by correlating them)
 	so could graphically arranging the specimens with t-SNE
 		https://cs.stanford.edu/people/karpathy/tsnejs/
