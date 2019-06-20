@@ -1,6 +1,5 @@
-function find_edit_points(code) {
+function parse_for_edit_points(code) {
 	var doc = [];
-	var edits = [];
 
 	// the first group here is in lieu of negative lookbehinds in javascript,
 	// to avoid starting matching from inside an identifier
@@ -15,39 +14,34 @@ function find_edit_points(code) {
 			console.warn(`somehow matched ${num_str} (full match_str = ${match_str})`);
 			doc.push(edit);
 		} else {
-			var edit = {
+			var edit_point = {
 				type: "number_literal",
-				original_str: num_str,
-				mutation_str: num_str,
+				text: num_str,
 			};
-			edits.push(edit);
-			doc.push(edit);
+			doc.push(edit_point);
 		}
 		last_match_lastIndex = numbers_regexp.lastIndex;
 	}
 	doc.push(code.slice(last_match_lastIndex));
 
-	return {doc, edits};
+	return doc;
 }
-function find_edit_points_skipping_line_comments(code) {
+function parse_for_edit_points_skipping_line_comments(code) {
 	// TODO: loosely ignore block comments too
 	// (ignoring the complexity of things in strings, like `"// /* /*/"`, or `var rgx = /http:\/\/foo\/*/i`)
 
 	var doc = [];
-	var edits = [];
 
 	code.split("\n").forEach((line)=> {
 		if (line.match(/^\s*\/\//)) {
 			doc.push(line);
 		} else {
-			var line_stuff = find_edit_points(line);
-			doc = doc.concat(line_stuff.doc);
-			edits = edits.concat(line_stuff.edits);
+			doc = doc.concat(parse_for_edit_points(line));
 		}
 		doc.push("\n");
 	});
 
-	return {doc, edits};
+	return doc;
 }
 function document_structures_are_equivalent(doc_a, doc_b) {
 	// TODO: equivalize docs like "a" "b" vs "ab" by merging adjacent string parts?
@@ -94,14 +88,17 @@ function mutate_number_literal(num_str, mutation_chance) {
 	return keep_as_int_or_float(n);
 }
 
-function render_doc_to_string(doc, edits_to_include) {
-	return doc.map((part)=> {
+function render_doc_to_string(doc, edits) {
+	return doc.map((part, index)=> {
 		if (typeof part === "string") {
 			return part;
-		} else if (edits_to_include.includes(part)) {
-			return part.mutation_str;
 		} else {
-			return part.original_str;
+			var edit = edits.find((edit)=> index === edit.index_in_doc);
+			if (edit) {
+				return edit.mutated_text;
+			} else {
+				return part.text;
+			}
 		}
 	}).join("");
 }
@@ -314,8 +311,8 @@ function record_thumbnail() {
 		if (dragging_el !== thumbnail_img) {
 			var dragged_code = event.dataTransfer.getData("text/plain");
 			var dropped_onto_code = code;
-			var dragged_doc = find_edit_points(dragged_code);
-			var dropped_onto_doc = find_edit_points(dropped_onto_code);
+			var dragged_doc = parse_for_edit_points(dragged_code);
+			var dropped_onto_doc = parse_for_edit_points(dropped_onto_code);
 			console.log(document_structures_are_equivalent(dragged_doc, dropped_onto_doc));
 			// breed(dragged_code, dropped_onto_code, 0.5);
 			// breed([dragged_code, dropped_onto_code], [0.5, 0.5]);
@@ -394,26 +391,35 @@ function compile_code_on_page() {
 		wait_for_compile_end();
 	});
 }
-function generate_mutations(edits) {
-	var mutation_chance = 0.01 + (0.5 / edits.length);
+function generate_edits(doc) {
+	var edit_points = doc.filter((part)=> typeof part !== "string");
+	var mutation_chance = 0.01 + (0.5 / edit_points.length);
 	var min_edits = 5;
 	var max_tries_to_reach_min_edits = 50;
 	var tries_to_reach_min_edits = 0;
-	var num_edits;
+	var edits;
 	do {
-		for (var edit of edits) {
-			if (edit.type === "number_literal") {
-				edit.mutation_str = mutate_number_literal(edit.original_str, mutation_chance);
+		edits = [];
+		for (var i=0; i<doc.length; i++) {
+			var part = doc[i];
+			if (part.type === "number_literal") {
+				var mutated_number_literal = mutate_number_literal(part.text, mutation_chance);
+				if (mutated_number_literal !== part.text) {
+					edits.push({
+						index_in_doc: i,
+						mutated_text: mutated_number_literal,
+						_original_text: part.text, // for debug
+						_from_part: part, // for debug
+					});
+				}
 			}
 		}
-		num_edits = edits.reduce((acc, edit)=> {
-			return acc + (edit.original_str !== edit.mutation_str);
-		}, 0);
 		tries_to_reach_min_edits++;
 		mutation_chance *= 1.5;
-		// console.log(`${num_edits} possible edits`);
-	} while (tries_to_reach_min_edits < max_tries_to_reach_min_edits && num_edits < min_edits);
-	// console.log(`${num_edits} possible edits in ${tries_to_reach_min_edits} tries`);
+		// console.log(`${edits.length} possible edits`);
+	} while (tries_to_reach_min_edits < max_tries_to_reach_min_edits && edits.length < min_edits);
+	// console.log(`${edits.length} possible edits in ${tries_to_reach_min_edits} tries`);
+	return edits;
 }
 
 var choose = (array)=> array[~~(array.length * Math.random())];
@@ -713,8 +719,8 @@ function remove_attribution_header(code) {
 	return code;
 }
 
-async function try_edits(doc, edits_to_include) {
-	var new_code = render_doc_to_string(doc, edits_to_include);
+async function try_edits(doc, edits) {
+	var new_code = render_doc_to_string(doc, edits);
 	new_code = add_or_replace_attribution_header(new_code);
 	set_code_on_page(new_code);
 	try {
@@ -749,11 +755,11 @@ async function mutate_code_on_page() {
 		compile_code_on_page();
 	};
 
-	var {doc, edits} = find_edit_points_skipping_line_comments(original_code);
+	var doc = parse_for_edit_points_skipping_line_comments(original_code);
 
 	var max_edit_set_tries = 5;
 	for (var edit_set_tries = 0; edit_set_tries < max_edit_set_tries; edit_set_tries++) {
-		generate_mutations(edits);
+		var edits = generate_edits(doc);
 
 		/* pseudo-code for the following algorithm
 
@@ -776,14 +782,6 @@ async function mutate_code_on_page() {
 
 		var accepted_edits = [];
 		var rejected_edits = [];
-		var null_edits = [];
-		var unvetted_edits = edits.filter((edit)=> {
-			if (edit.original_str === edit.mutation_str) {
-				null_edits.push(edit);
-				return false;
-			}
-			return true;
-		});
 
 		async function recursively_try_edit_set(unvetted_edits) {
 			// console.log("recursively_try_edit_set", unvetted_edits);
@@ -816,7 +814,7 @@ async function mutate_code_on_page() {
 				}
 			}
 		}
-		await recursively_try_edit_set(unvetted_edits);
+		await recursively_try_edit_set(edits);
 
 		if (stopped) {
 			console.log("abort from mutate_code_on_page");
