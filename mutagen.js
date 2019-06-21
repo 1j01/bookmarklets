@@ -993,16 +993,15 @@ thumbnail/history/specimen grid/palette:
 	allow sort/arrange by:
 		time created (current order)
 		ancestry (need to store what something was generated from) (and then just flatten the tree)
-		or t-SNE (see below)
-
-if you're going to be creating a bunch of programs with similar structure,
-	breeding could be an option...
-	(not to mention possibilities of merging unrelated programs by applying random functions between them etc., or reconciling semi-related programs by correlating them)
-	so could graphically arranging the specimens with t-SNE
-		https://cs.stanford.edu/people/karpathy/tsnejs/
+		or t-SNE
+			https://cs.stanford.edu/people/karpathy/tsnejs/
+			(we have these "edit points" to work with, that are currently all numbers)
+			(question: how much does magnitude matter? might it mess things up? would log help? or is that already built in?)
+			(i suppose any edit points that don't have a visible effect would make it worse,
+			but i'm curious how well it might do with just a naive implementation)
 
 operate on selection if there's a selection (and update bounds of selection)
-	multiple selections
+	should handle multiple selections for editors like codemirror and ace
 
 platform support
 	support bytebeat again on windows93.net (in iframe)
@@ -1023,5 +1022,10 @@ a mode where mutations are applied only after the time when they were generated/
 save code of all shadertoy tabs?
 
 maybe export an image with all the thumbnails, with all the codes embedded, that you can load back in and pick from
+
+correlate and reconcile semi-related programs for breeding? / haphazardly mash them up?
+	this would involve a lot more domain knowledge of the language and platform
+	(e.g. glsl functions and for shadertoy the mainImage and mainSound entry points)
+	and idk how this would work
 
 */
