@@ -26,7 +26,7 @@ function parse_for_edit_points_even_in_comments(code) {
 
 	return doc;
 }
-function parse_for_edit_points_skipping_line_comments(code) {
+function parse_for_edit_points(code) {
 	// TODO: loosely ignore block comments too
 	// (ignoring the complexity of things in strings, like `"// /* /*/"`, or `var rgx = /http:\/\/foo\/*/i`)
 
@@ -41,10 +41,19 @@ function parse_for_edit_points_skipping_line_comments(code) {
 		doc.push("\n");
 	});
 
+	doc = doc.reduce((doc, part)=> {
+		var last_part = doc[doc.length - 1];
+		if (typeof part === "string" && typeof last_part === "string") {
+			doc[doc.length - 1] = last_part + part;
+			return doc;
+		}
+		doc.push(part);
+		return doc;
+	}, []);
+
 	return doc;
 }
 function document_structures_are_equivalent(doc_a, doc_b) {
-	// TODO: equivalize docs like "a" "b" vs "ab" by merging adjacent string parts?
 	if (doc_a.length !== doc_b.length) {
 		return false;
 	}
@@ -52,7 +61,11 @@ function document_structures_are_equivalent(doc_a, doc_b) {
 		var part_a = doc_a[i];
 		var part_b = doc_b[i];
 		if (typeof part === "string") {
-			if (part_a !== part_b) {
+			if (i === 0) {
+				if (remove_attribution_header(part_a) !== remove_attribution_header(part_b)) {
+					return false;
+				}
+			} else if (part_a !== part_b) {
 				return false;
 			}
 		}
@@ -311,8 +324,8 @@ function record_thumbnail() {
 		if (dragging_el !== thumbnail_img) {
 			var dragged_code = event.dataTransfer.getData("text/plain");
 			var dropped_onto_code = code;
-			var dragged_doc = parse_for_edit_points_skipping_line_comments(dragged_code);
-			var dropped_onto_doc = parse_for_edit_points_skipping_line_comments(dropped_onto_code);
+			var dragged_doc = parse_for_edit_points(dragged_code);
+			var dropped_onto_doc = parse_for_edit_points(dropped_onto_code);
 			if (document_structures_are_equivalent(dragged_doc, dropped_onto_doc)) {
 				breed(dragged_doc, dropped_onto_doc, 0.5);
 				// breed([dragged_doc, dropped_onto_doc], [0.5, 0.5]);
@@ -786,7 +799,7 @@ async function mutate_code_on_page() {
 		compile_code_on_page();
 	};
 
-	var doc = parse_for_edit_points_skipping_line_comments(original_code);
+	var doc = parse_for_edit_points(original_code);
 
 	var max_edit_set_tries = 5;
 	for (var edit_set_tries = 0; edit_set_tries < max_edit_set_tries; edit_set_tries++) {
