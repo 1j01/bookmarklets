@@ -1,4 +1,4 @@
-function parse_for_edit_points(code) {
+function parse_for_edit_points_even_in_comments(code) {
 	var doc = [];
 
 	// the first group here is in lieu of negative lookbehinds in javascript,
@@ -36,7 +36,7 @@ function parse_for_edit_points_skipping_line_comments(code) {
 		if (line.match(/^\s*\/\//)) {
 			doc.push(line);
 		} else {
-			doc = doc.concat(parse_for_edit_points(line));
+			doc = doc.concat(parse_for_edit_points_even_in_comments(line));
 		}
 		doc.push("\n");
 	});
@@ -95,7 +95,7 @@ function render_doc_to_string(doc, edits) {
 		} else {
 			var edit = edits.find((edit)=> index === edit.index_in_doc);
 			if (edit) {
-				return edit.mutated_text;
+				return edit.text;
 			} else {
 				return part.text;
 			}
@@ -311,11 +311,17 @@ function record_thumbnail() {
 		if (dragging_el !== thumbnail_img) {
 			var dragged_code = event.dataTransfer.getData("text/plain");
 			var dropped_onto_code = code;
-			var dragged_doc = parse_for_edit_points(dragged_code);
-			var dropped_onto_doc = parse_for_edit_points(dropped_onto_code);
-			console.log(document_structures_are_equivalent(dragged_doc, dropped_onto_doc));
-			// breed(dragged_code, dropped_onto_code, 0.5);
-			// breed([dragged_code, dropped_onto_code], [0.5, 0.5]);
+			var dragged_doc = parse_for_edit_points_skipping_line_comments(dragged_code);
+			var dropped_onto_doc = parse_for_edit_points_skipping_line_comments(dropped_onto_code);
+			if (document_structures_are_equivalent(dragged_doc, dropped_onto_doc)) {
+				breed(dragged_doc, dropped_onto_doc, 0.5);
+				// breed([dragged_doc, dropped_onto_doc], [0.5, 0.5]);
+			} else {
+				// alert("Specimens do not appear compatible.");
+				if (confirm("Specimens do not appear compatible. Force breeding?")) {
+					alert(choose(["creepy.", "ew.", "gross. gross, that you would try to do that. (haha)"]));
+				}
+			}
 		}
 		return false;
 	});
@@ -407,7 +413,7 @@ function generate_edits(doc) {
 				if (mutated_number_literal !== part.text) {
 					edits.push({
 						index_in_doc: i,
-						mutated_text: mutated_number_literal,
+						text: mutated_number_literal,
 						_original_text: part.text, // for debug
 						_from_part: part, // for debug
 					});
@@ -419,6 +425,31 @@ function generate_edits(doc) {
 		// console.log(`${edits.length} possible edits`);
 	} while (tries_to_reach_min_edits < max_tries_to_reach_min_edits && edits.length < min_edits);
 	// console.log(`${edits.length} possible edits in ${tries_to_reach_min_edits} tries`);
+	return edits;
+}
+// TODO: breed between arbitrary number of programs, with weighted chances
+function generate_edits_by_breeding(doc_a, doc_b, chance_of_doc_b) {
+	// here we're gonna make edits for every edit point
+	// it doesn't matter because we're not testing and eliminating individual edits
+	// so including "edits" where the docs match isn't gonna slow things down
+	var edits = [];
+	console.assert(doc_a.length === doc_b.length, "doc lengths should match");
+	for (var i=0; i<doc_a.length; i++) {
+		var part_a = doc_a[i];
+		var part_b = doc_b[i];
+		console.assert(part_a.type === part_b.type, "part types should match");
+		if (part_a.type === "number_literal") {
+			var part = Math.random() < chance_of_doc_b ? part_b : part_a;
+			edits.push({
+				index_in_doc: i,
+				text: part.text,
+				_from_part: part, // for debug
+				_doc_a_part: part_a, // for debug
+				_doc_b_part: part_b, // for debug
+			});
+		}
+	}
+	// console.log("breeding edits:", edits);
 	return edits;
 }
 
@@ -850,6 +881,28 @@ async function mutate_code_on_page() {
 	}
 	console.log("mutation finished - unsuccessful");
 	stopped = true;
+}
+
+async function breed(doc_a, doc_b, chance_of_doc_b) {
+	
+	try {
+		window.mutagen_stop();
+	} catch(e) {}
+
+	var original_code = get_code_from_page();
+
+	var edits_to_try = generate_edits_by_breeding(doc_a, doc_b, chance_of_doc_b);
+
+	var error = await try_edits(doc_a, edits_to_try);
+	// console.log("tried", edits_to_try, "got", error);
+	if (!error) {
+		console.log("breeding success:");
+		record_thumbnail();
+	} else {
+		alert("breed doesn't look good - rolling back code");
+		set_code_on_page(original_code);
+		compile_code_on_page();
+	}
 }
 
 function add_buttons_to_page() {
